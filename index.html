@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мировая Держава — глобальная стратегия для Windows</title>
+<meta name="description" content="Мировая Держава — глобальная стратегия: экономика, политика, дипломатия и война на всей планете. 4 эпохи, сотни провинций, игра по сети до 12 человек. Скачайте бесплатно для Windows или играйте в браузере.">
+<meta property="og:title" content="Мировая Держава — глобальная стратегия">
+<meta property="og:description" content="Ведите свою страну через войны и кризисы XX и XXI века. Бесплатно для Windows и в браузере.">
+<meta property="og:image" content="img/europe.jpg">
+<link rel="icon" href="icon.png">
+<style>
+:root {
+  --bg: #0b111c; --bg2: #0f1726; --panel: #141f31; --line: #26354d; --text: #dde4ee; --muted: #8d9ab0;
+  --gold: #e3b54b; --gold2: #f3cf72; --accent: #4f8fe6; --red: #d8574a;
+  --r: 14px; --w: 1160px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; overflow-x: hidden; }
+a { color: var(--gold2); text-decoration: none; }
+img { max-width: 100%; display: block; }
+.wrap { max-width: var(--w); margin: 0 auto; padding: 0 20px; }
+
+/* шапка */
+header.top { position: sticky; top: 0; z-index: 20; background: rgba(11,17,28,.82); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(38,53,77,.6); }
+header.top .wrap { display: flex; align-items: center; gap: 22px; height: 64px; }
+.logo { display: flex; align-items: center; gap: 10px; color: var(--text); font-weight: 800; letter-spacing: .04em; white-space: nowrap; }
+.logo img { width: 34px; height: 34px; }
+nav.links { display: flex; gap: 20px; margin-left: auto; }
+nav.links a { color: var(--muted); font-size: 15px; }
+nav.links a:hover { color: var(--text); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: 10px; padding: 12px 22px; font-weight: 700; font-size: 16px; border: 1px solid transparent; cursor: pointer; transition: transform .15s, box-shadow .15s, background .15s; white-space: nowrap; }
+.btn:hover { transform: translateY(-1px); }
+.btn.gold { background: linear-gradient(180deg, var(--gold2), var(--gold)); color: #1a1406; box-shadow: 0 6px 24px rgba(227,181,75,.25); }
+.btn.gold:hover { box-shadow: 0 8px 32px rgba(227,181,75,.4); }
+.btn.ghost { background: rgba(255,255,255,.04); border-color: var(--line); color: var(--text); }
+.btn.ghost:hover { border-color: #3a4f70; background: rgba(255,255,255,.07); }
+.btn.sm { padding: 8px 16px; font-size: 14px; }
+.btn.big { padding: 14px 30px; font-size: 18px; border-radius: 12px; flex-direction: column; gap: 2px; }
+.btn.big .main { display: flex; align-items: center; gap: 10px; }
+.btn .sub { font-weight: 500; font-size: 13px; opacity: .75; }
+
+/* первый экран */
+.hero { position: relative; padding: 72px 0 40px; overflow: hidden; }
+.hero::before { content: ""; position: absolute; inset: 0; background: url(img/europe.jpg) center/cover; opacity: .16; filter: blur(2px) saturate(1.2); transform: scale(1.05); }
+.hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, transparent 0%, var(--bg) 75%), linear-gradient(180deg, transparent 60%, var(--bg)); }
+.hero .wrap { position: relative; z-index: 1; text-align: center; }
+.hero h1 { margin: 0; font-size: clamp(40px, 7vw, 78px); line-height: 1.05; letter-spacing: .12em; font-weight: 800; background: linear-gradient(180deg, #ffe3a0, var(--gold) 60%, #b98a2a); -webkit-background-clip: text; background-clip: text; color: transparent; text-transform: uppercase; }
+.hero .tag { margin: 18px auto 0; max-width: 680px; font-size: clamp(17px, 2.2vw, 20px); color: #c5cfdd; }
+.cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 34px; }
+.cta .btn.big { min-width: 260px; }
+.meta { margin-top: 14px; color: var(--muted); font-size: 14px; }
+.shot-main { margin: 46px auto 0; max-width: 1040px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(227,181,75,.08); cursor: zoom-in; }
+
+/* секции */
+section { padding: 70px 0; }
+section.alt { background: var(--bg2); border-top: 1px solid #172236; border-bottom: 1px solid #172236; }
+h2 { font-size: clamp(28px, 4vw, 38px); margin: 0 0 10px; line-height: 1.2; }
+.lead { color: var(--muted); margin: 0 0 36px; max-width: 720px; font-size: 17px; }
+.grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 22px; }
+.card .ic { width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center; background: rgba(227,181,75,.12); color: var(--gold); margin-bottom: 14px; }
+.card .ic svg { width: 22px; height: 22px; }
+.card h3 { margin: 0 0 6px; font-size: 18px; }
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+
+.eras { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.era { background: linear-gradient(180deg, #172338, var(--panel)); border: 1px solid var(--line); border-radius: var(--r); padding: 22px; }
+.era .yr { font-size: 34px; font-weight: 800; color: var(--gold); line-height: 1; }
+.era h3 { margin: 8px 0 6px; font-size: 17px; }
+.era p { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+.gallery { display: grid; gap: 14px; grid-template-columns: repeat(2, 1fr); }
+.gallery figure { margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--panel); cursor: zoom-in; }
+.gallery figure img { aspect-ratio: 16/9; object-fit: cover; width: 100%; transition: transform .3s; }
+.gallery figure:hover img { transform: scale(1.03); }
+.gallery figcaption { padding: 10px 14px; font-size: 14px; color: var(--muted); }
+
+/* скачать */
+.dl { display: grid; gap: 18px; grid-template-columns: 1.3fr 1fr; align-items: start; }
+.dl-main { background: linear-gradient(160deg, #1b2840, var(--panel)); border: 1px solid #3a4f70; border-radius: 18px; padding: 30px; }
+.dl-main h3 { margin: 0 0 6px; font-size: 22px; }
+.dl-main .btn { margin-top: 18px; }
+.steps { counter-reset: s; list-style: none; margin: 22px 0 0; padding: 0; }
+.steps li { counter-increment: s; position: relative; padding: 0 0 14px 44px; color: #c5cfdd; }
+.steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50%; background: rgba(227,181,75,.15); color: var(--gold); font-weight: 800; display: grid; place-items: center; font-size: 15px; }
+.note { margin-top: 10px; padding: 14px 16px; border-radius: 10px; background: rgba(79,143,230,.08); border: 1px solid rgba(79,143,230,.3); font-size: 14.5px; color: #c5d6ee; }
+.side { display: grid; gap: 14px; }
+.side .card h3 { font-size: 16px; }
+table.req { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+table.req td { padding: 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.req td:first-child { color: var(--muted); width: 42%; padding-right: 10px; }
+table.req tr:last-child td { border-bottom: 0; }
+
+details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 0 20px; margin-bottom: 10px; }
+details summary { cursor: pointer; padding: 16px 0; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+details summary::-webkit-details-marker { display: none; }
+details summary::after { content: "+"; color: var(--gold); font-size: 22px; line-height: 1; }
+details[open] summary::after { content: "−"; }
+details p { margin: 0 0 16px; color: var(--muted); }
+
+footer { padding: 36px 0 50px; color: var(--muted); font-size: 14px; border-top: 1px solid #172236; }
+footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+
+/* увеличенный скриншот */
+.lb { position: fixed; inset: 0; z-index: 50; background: rgba(4,7,12,.92); display: none; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
+.lb.on { display: flex; }
+.lb img { max-height: 92vh; border-radius: 10px; box-shadow: 0 20px 80px rgba(0,0,0,.6); }
+
+.only-other { display: none; }
+body.not-win .only-other { display: block; }
+
+@media (max-width: 860px) {
+  nav.links { display: none; }
+  header.top .btn { margin-left: auto; }
+  .dl { grid-template-columns: 1fr; }
+  .gallery { grid-template-columns: 1fr; }
+  section { padding: 54px 0; }
+  .hero { padding-top: 48px; }
+  .cta .btn.big { min-width: 0; width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#"><img src="icon.png" alt="">Мировая Держава</a>
+    <nav class="links">
+      <a href="#features">Об игре</a>
+      <a href="#eras">Эпохи</a>
+      <a href="#shots">Скриншоты</a>
+      <a href="#download">Скачать</a>
+      <a href="#faq">Вопросы</a>
+    </nav>
+    <a class="btn gold sm" href="#download">Скачать</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <h1>Мировая<br>Держава</h1>
+    <p class="tag">Глобальная стратегия: ведите свою страну через войны и кризисы XX и XXI века. Экономика, политика, дипломатия и война — на всей планете.</p>
+    <div class="cta">
+      <a class="btn gold big js-dl" href="download/MirovayaDerzhava-Setup.exe" download>
+        <span class="main"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M6 11l6 6 6-6M4 21h16"/></svg>Скачать для Windows</span>
+        <span class="sub js-dl-meta">Бесплатно · установщик</span>
+      </a>
+      <a class="btn ghost big" href="play.html">
+        <span class="main"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>Играть в браузере</span>
+        <span class="sub">Без установки</span>
+      </a>
+    </div>
+    <div class="meta">Windows 10 и 11 · 64 бит · Игра по сети до 12 человек</div>
+    <img class="shot-main js-zoom" src="img/europe.jpg" alt="Карта Европы в 1939 году" width="1280" height="651">
+  </div>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <h2>Целый мир в ваших руках</h2>
+    <p class="lead">Выберите любую страну — от великой державы до маленького государства — и решайте, куда она пойдёт: к процветанию, к союзам или к войне.</p>
+    <div class="grid">
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></div><h3>Вся планета</h3><p>Почти 700 провинций с рельефом, городами, морями и проливами. Детальные границы стран и плавная карта с приближением.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><h3>Экономика</h3><p>Заводы, университеты, налоги, торговля и ресурсы. Сильная армия начинается с сильной экономики.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/></svg></div><h3>Армия и фронт</h3><p>Пехота, танки, артиллерия, авиация и флот. Командиры с опытом, снабжение, котлы, десанты — и бои, которые можно посмотреть.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 11 3 16l5 5M16 3l5 5-5 5M3 16h11M21 8H10"/></svg></div><h3>Дипломатия</h3><p>Союзы, пакты, торговые договоры и мирные переговоры с передачей провинций. Компьютерные страны помнят обиды.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M10 3v6L4 19a1 1 0 0 0 .9 1.5h14.2A1 1 0 0 0 20 19l-6-10V3"/></svg></div><h3>Наука и курс страны</h3><p>Технологии, национальный курс, стабильность и разведка — разные пути к победе.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5M15.5 14.6c3 .1 5.2 1.8 5.8 5.4"/></svg></div><h3>Игра по сети</h3><p>До 12 игроков в одной партии по коду комнаты. Друзья могут войти и в уже начатую игру. Компьютерная и браузерная версии играют вместе.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="eras" class="alt">
+  <div class="wrap">
+    <h2>Четыре эпохи</h2>
+    <p class="lead">Каждая эпоха — свой мир: границы, союзы, армии и технологии своего времени.</p>
+    <div class="eras">
+      <div class="era"><div class="yr">1914</div><h3>Великая война</h3><p>Выстрелы в Сараеве запустили цепь мобилизаций. Антанта против Центральных держав, колониальные империи на пике могущества.</p></div>
+      <div class="era"><div class="yr">1939</div><h3>Мировой пожар</h3><p>Германия вторглась в Польшу, Британия и Франция объявили войну. На Востоке Япония воюет с Китаем.</p></div>
+      <div class="era"><div class="yr">1962</div><h3>Холодная война</h3><p>Карибский кризис: мир на грани ядерной войны. НАТО и Варшавский договор смотрят друг на друга через железный занавес.</p></div>
+      <div class="era"><div class="yr">2025</div><h3>Современный мир</h3><p>Многополярный мир: военно-политические блоки, торговые войны, гонка технологий, дроны и ракеты.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="shots">
+  <div class="wrap">
+    <h2>Скриншоты</h2>
+    <p class="lead">Нажмите на картинку, чтобы увеличить.</p>
+    <div class="gallery">
+      <figure class="js-zoom-fig"><img src="img/front.jpg" alt="Армия и фронт" loading="lazy"><figcaption>Армии на фронте, города и постройки</figcaption></figure>
+      <figure class="js-zoom-fig"><img src="img/battle.jpg" alt="Просмотр битвы" loading="lazy"><figcaption>Каждую битву можно посмотреть</figcaption></figure>
+      <figure class="js-zoom-fig"><img src="img/menu.jpg" alt="Главное меню" loading="lazy"><figcaption>Выбор эпохи и сложности</figcaption></figure>
+      <figure class="js-zoom-fig"><img src="img/eurasia.jpg" alt="Евразия" loading="lazy"><figcaption>От Атлантики до Тихого океана</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section id="download" class="alt">
+  <div class="wrap">
+    <h2>Скачать игру</h2>
+    <p class="lead">Бесплатно. Установка займёт меньше минуты.</p>
+    <div class="dl">
+      <div class="dl-main">
+        <h3>Мировая Держава для Windows</h3>
+        <div style="color:var(--muted)" class="js-ver">Версия 1.0</div>
+        <a class="btn gold big js-dl" href="download/MirovayaDerzhava-Setup.exe" download>
+          <span class="main"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M6 11l6 6 6-6M4 21h16"/></svg>Скачать установщик</span>
+          <span class="sub js-dl-meta">MirovayaDerzhava-Setup.exe</span>
+        </a>
+        <ol class="steps">
+          <li>Скачайте и запустите <b>MirovayaDerzhava-Setup.exe</b>.</li>
+          <li>Нажмите «Установить» — права администратора не нужны.</li>
+          <li>Запускайте игру ярлыком «Мировая Держава» на рабочем столе или в меню «Пуск».</li>
+        </ol>
+        <div class="note"><b>Если Windows покажет «Система Windows защитила ваш компьютер»</b> — нажмите «Подробнее», затем «Выполнить в любом случае». Так Windows реагирует на любые программы от небольших разработчиков, у которых нет платной цифровой подписи.</div>
+        <p style="margin:18px 0 0;font-size:14.5px;color:var(--muted)">Не хотите устанавливать? <a class="js-portable" href="download/MirovayaDerzhava-portable.zip">Скачайте архив</a>, распакуйте и запустите <b>MirovayaDerzhava.exe</b>.</p>
+        <div class="note only-other" style="background:rgba(227,181,75,.08);border-color:rgba(227,181,75,.3);color:#eadbb5">Похоже, у вас не Windows. На Mac, Linux, планшете и телефоне играйте <a href="play.html">в браузере</a> — это та же игра.</div>
+      </div>
+      <div class="side">
+        <div class="card">
+          <h3>Системные требования</h3>
+          <table class="req">
+            <tr><td>Система</td><td>Windows 10 или 11, 64 бит</td></tr>
+            <tr><td>Процессор</td><td>2 ядра, от 2 ГГц</td></tr>
+            <tr><td>Память</td><td>4 ГБ</td></tr>
+            <tr><td>Место на диске</td><td>около 400 МБ</td></tr>
+            <tr><td>Экран</td><td>от 1280×720</td></tr>
+            <tr><td>Интернет</td><td>только для игры по сети и аккаунта</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h3>Играть в браузере</h3>
+          <p style="color:var(--muted);font-size:15px;margin:0 0 14px">Работает в Chrome, Edge, Firefox и Яндекс Браузере — на любом компьютере.</p>
+          <a class="btn ghost" href="play.html">Открыть игру ▶</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Вопросы</h2>
+    <p class="lead">Коротко о главном.</p>
+    <details><summary>Чем версия для компьютера отличается от браузерной?</summary><p>Это та же игра, но в своём окне: полноэкранный режим (F11 или Alt+Enter), ярлык на рабочем столе, работает без интернета. Если вы хост сетевой игры и свернули окно, игра не «засыпает» и друзья не теряют связь.</p></details>
+    <details><summary>Можно ли играть по сети с теми, у кого браузерная версия?</summary><p>Да. Создайте комнату («Игра по сети» → «Создать комнату») и отправьте друзьям код из 5 символов. Неважно, в какой версии играет каждый — главное, чтобы версии игры были одинаковыми.</p></details>
+    <details><summary>Где хранятся сохранения? Пропадут ли они при обновлении?</summary><p>Сохранения лежат в профиле пользователя Windows (папка %APPDATA%\MirovayaDerzhava) и не удаляются ни при обновлении, ни при удалении игры. С аккаунтом сохранения ещё и синхронизируются через облако.</p></details>
+    <details><summary>Как обновить игру?</summary><p>Скачайте установщик с этой страницы и запустите — он поставит новую версию поверх старой. Сохранения останутся.</p></details>
+    <details><summary>Как удалить игру?</summary><p>«Параметры» → «Приложения» → «Мировая Держава» → «Удалить». Или запустите uninstall.exe в папке игры.</p></details>
+    <details><summary>Антивирус или Windows ругаются на установщик</summary><p>У игры нет платного сертификата подписи кода, поэтому Windows SmartScreen предупреждает о «неизвестном издателе». Нажмите «Подробнее» → «Выполнить в любом случае». Игра не требует прав администратора и ставится в вашу личную папку.</p></details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>© Мировая Держава · <span class="js-ver2">версия 1.0</span></div>
+    <div><a href="#download">Скачать</a> · <a href="play.html">Играть в браузере</a></div>
+  </div>
+</footer>
+
+<div class="lb" id="lb"><img alt=""></div>
+
+<script>
+// Где лежат файлы для скачивания. Если установщик выложен на другой сайт (например, GitHub Releases
+// или Яндекс Диск), впишите сюда прямые ссылки — кнопки на странице сразу начнут вести туда.
+const DOWNLOAD = {
+  setup: 'https://github.com/azimkhanraev-ui/mirovaya-derzhava/releases/latest/download/MirovayaDerzhava-Setup.exe',
+  portable: 'https://github.com/azimkhanraev-ui/mirovaya-derzhava/releases/latest/download/MirovayaDerzhava-portable.zip',
+};
+
+(function () {
+  if (DOWNLOAD.setup) document.querySelectorAll('.js-dl').forEach(a => { a.href = DOWNLOAD.setup; a.removeAttribute('download'); });
+  if (DOWNLOAD.portable) document.querySelectorAll('.js-portable').forEach(a => { a.href = DOWNLOAD.portable; });
+  // размер и версия из version.json (его пишет сборка)
+  fetch('version.json', { cache: 'no-store' }).then(r => r.json()).then(v => {
+    document.querySelectorAll('.js-dl-meta').forEach((el, i) => { el.textContent = (i === 0 ? 'Бесплатно · ' : 'MirovayaDerzhava-Setup.exe · ') + v.setup.mb.toLocaleString('ru') + ' МБ'; });
+    document.querySelectorAll('.js-ver').forEach(el => { el.textContent = 'Версия ' + v.version + ' · Windows 10/11, 64 бит'; });
+    document.querySelectorAll('.js-ver2').forEach(el => { el.textContent = 'версия ' + v.version; });
+    document.querySelectorAll('.js-portable').forEach(el => { el.textContent = 'Скачайте архив (' + v.portable.mb.toLocaleString('ru') + ' МБ)'; });
+  }).catch(() => { });
+  // не Windows — подсказать браузерную версию
+  const ua = navigator.userAgent;
+  if (!/Windows/i.test(ua) || /Phone|Android|iPad|iPhone/i.test(ua)) document.body.classList.add('not-win');
+  // увеличение скриншотов
+  const lb = document.getElementById('lb'), li = lb.querySelector('img');
+  const open = src => { li.src = src; lb.classList.add('on'); };
+  document.querySelectorAll('.js-zoom').forEach(img => img.addEventListener('click', () => open(img.src)));
+  document.querySelectorAll('.js-zoom-fig').forEach(f => f.addEventListener('click', () => open(f.querySelector('img').src)));
+  lb.addEventListener('click', () => lb.classList.remove('on'));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') lb.classList.remove('on'); });
+})();
+</script>
+</body>
+</html>
