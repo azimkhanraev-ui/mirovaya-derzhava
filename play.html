@@ -438,6 +438,36 @@ svg.bic { width: 16px; height: 16px; vertical-align: -3px; }
 .brief-ul li { margin: 2px 0; }
 .chip.enemy { background: #4a1f22; color: #ffb8b0; }
 
+/* ---------- v6: достижения, графики, события, Совет, звук ---------- */
+.ach-pop { position: fixed; z-index: 90; right: 18px; top: 70px; display: flex; gap: 12px; align-items: center; max-width: 360px;
+  background: linear-gradient(135deg, #2a2210, #172235); border: 1px solid var(--gold); border-radius: 12px; padding: 12px 16px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.6); transform: translateX(120%); transition: transform .45s cubic-bezier(.2,.9,.3,1.2); }
+.ach-pop.on { transform: none; }
+.ach-pop small { display: block; color: var(--gold); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.ach-pop b { display: block; font-size: 15px; }
+.ach-pop span:not(.ach-ic) { display: block; font-size: 12.5px; color: var(--muted); }
+.ach-ic { font-size: 28px; line-height: 1; width: 40px; text-align: center; flex: none; }
+.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.ach { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #141e2f; opacity: .55; }
+.ach.got { opacity: 1; border-color: #6b5a2a; background: #1f2232; }
+.ach b { display: block; font-size: 13px; }
+.ach small { display: block; font-size: 11.5px; color: var(--muted); line-height: 1.3; }
+.ach .ach-ic { font-size: 22px; width: 30px; }
+.chart-wrap { width: 100%; background: #111a29; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.chart-wrap canvas { display: block; cursor: crosshair; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 8px 0; font-size: 12.5px; }
+.ev-opts { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.ev-opt { text-align: left; padding: 10px 12px; }
+.ev-opt b { display: block; }
+.ev-opt small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.ev-opt:hover small { color: var(--text); }
+.un-kinds { display: flex; flex-wrap: wrap; gap: 6px; }
+.snd input[type=range] { width: 100%; margin: 2px 0 8px; }
+.snd-btn { position: fixed; z-index: 30; right: 16px; bottom: 16px; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line);
+  background: var(--panel2); font-size: 20px; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.snd-btn:hover { border-color: var(--gold); }
+@media (max-width: 640px) { .ach-pop { left: 12px; right: 12px; max-width: none; } }
+
 </style>
 </head>
 <body>
@@ -486,6 +516,7 @@ svg.bic { width: 16px; height: 16px; vertical-align: -3px; }
       <button data-win="military" title="Вооружённые силы (M)">⚔️<span>Армия</span></button>
       <button data-win="diplomacy" title="Дипломатия (D)">🤝<span>Дипломатия</span></button>
       <button data-win="programs" title="Национальный курс (N)" id="btnProg">🎯<span>Курс</span></button>
+      <button data-win="un" title="Мировой совет (U)" id="btnUN">🌐<span>Совет</span></button>
       <button data-win="tech" title="Технологии (T)">🔬<span>Наука</span></button>
       <button data-win="log" title="Журнал (L)">📜<span>Журнал</span></button>
       <button data-win="menu" title="Меню (Esc)">☰</button>
@@ -1316,7 +1347,7 @@ function tradesOf(n) {
   return c;
 }
 // может ли армия нации n находиться в провинции, принадлежащей o
-const canEnter = (n, o) => n === o || allied(n, o) || atWar(n, o);
+const canEnter = (n, o) => n === o || allied(n, o) || atWar(n, o) || !!(S.access && S.access[n + '>' + o]);
 
 // ================================================================= создание партии
 function hashColor(str) {
@@ -1785,9 +1816,11 @@ function canImport(nid) {
   const c = G.supCache[key];
   if (c && c.t === S.turn && c.v === G.supVer) return c.d;
   let ok = false;
+  const sanc = typeof isSanctioned === 'function' && isSanctioned(nid);   // санкции: торговать можно только с союзниками
   for (let i = 0; i < S.prov.length && !ok; i++) {
     const ps = S.prov[i];
     if (ps.o !== nid) continue;
+    if (sanc) { if (prov(i).n.some(x => { const o = S.prov[x].o; return o !== nid && allied(o, nid); })) ok = true; continue; }
     if (prov(i).sea.length && !isBlockaded(i)) ok = true;
     else if (prov(i).n.some(x => { const o = S.prov[x].o; return o !== nid && !atWar(o, nid) && (hasTrade(o, nid) || allied(o, nid)); })) ok = true;
   }
@@ -2364,6 +2397,7 @@ function eliminate(nid, by) {
   log(`${n.name} прекращает существование${by ? ' — победитель: ' + nat(by).name : ''}.`, 'big', null);
   if (!n.ai) { S.pending.push({ id: uid(), to: nid, type: 'defeat' }); S.flags['defeat_' + nid] = 1; }
   G.supVer++;
+  if (typeof onEliminate === 'function') onEliminate(nid, by);
 }
 
 // ================================================================= флот
@@ -2569,6 +2603,7 @@ function worldReactsToNuke(nid, target, k) {
   // ответный удар ИИ
   const T = nat(target);
   if (T.ai && T.nukes > 0 && Math.random() < 0.7) S.flags['retaliate_' + target] = nid;
+  if (typeof onNuke === 'function') onNuke(nid, target, k);
 }
 
 // ================================================================= дипломатия
@@ -2594,7 +2629,8 @@ function declareWar(a, b, silent) {
   delete S.trade[pk(a, b)];
   S.wars[pk(a, b)] = { start: S.turn, att: a };
   setRel(a, b, Math.min(rel(a, b), -60));
-  A.stab = Math.max(0, A.stab + GOVS[A.gov].warDecl);
+  const cb = typeof hasCB === 'function' && hasCB(a, b);
+  A.stab = Math.max(0, A.stab + (cb ? Math.max(0, GOVS[A.gov].warDecl) : GOVS[A.gov].warDecl));
   log(`⚔ ${A.name} объявляет войну ${B.name}!`, 'big', null);
   G.supVer++;
   notify(b, { type: 'warDeclared', from: a });
@@ -2611,6 +2647,7 @@ function declareWar(a, b, silent) {
     if (isHuman(x)) return; // игрок решает сам
     if (rel(x, a) > 55 && rel(x, b) < 0 && Math.random() < 0.6) joinWar(x, b, a);
   });
+  if (typeof onWarDeclared === 'function') onWarDeclared(a, b, cb);
   return null;
 }
 function joinWar(x, enemy, friend) {
@@ -2625,6 +2662,7 @@ function makePeace(a, b) {
   addRel(a, b, 25);
   S.nap[pk(a, b)] = S.turn + 24;
   log(`🕊 ${nat(a).name} и ${nat(b).name} заключили мир.`, 'big', null);
+  if (typeof onPeace === 'function') onPeace(a, b);
 }
 // оценка войны с точки зрения nid против enemy (>0 — nid выигрывает)
 function warScore(nid, enemy) {
@@ -2756,6 +2794,7 @@ function endTurnInner() {
   // ИИ
   Object.values(S.nations).forEach(n => { if (n.alive && n.ai) AI.think(n.id); });
   features2Tick();
+  if (typeof features3Pre === 'function') features3Pre();
   moveFleets();
   moveArmies();
   processProduction();
@@ -2853,6 +2892,7 @@ function endTurnInner() {
   });
   // ИИ: мир и капитуляции
   AI.peaceRound();
+  if (typeof features3Post === 'function') features3Post();
   // дата
   S.turn++;
   S.month++;
@@ -4613,6 +4653,867 @@ function warScoreTook(nid, enemy) {
   let took = 0;
   S.prov.forEach(ps => { if (ps.core === enemy && ps.o === nid) took++; });
   return took;
+}
+
+</script>
+<script>
+/* v6: события с выбором, Мировой совет (ООН), расширенная дипломатия (подарки, военный доступ, гарантии,
+   эмбарго, осуждение, научные пакты, ультиматумы, сателлиты), временные модификаторы, статистика партии. */
+'use strict';
+
+// ================================================================= общее состояние
+function F3() {
+  if (!S.f3) S.f3 = {};
+  const f = S.f3;
+  f.tm = f.tm || [];          // временные модификаторы {n, k, v, u (до хода), s (источник)}
+  f.guar = f.guar || {};      // гарантии независимости 'гарант>страна'
+  f.cb = f.cb || {};          // повод для войны 'a>b' → до хода
+  f.emb = f.emb || {};        // эмбарго 'a>b' → до хода
+  f.sci = f.sci || {};        // научные пакты pk(a,b)
+  f.vas = f.vas || {};        // сателлиты: подчинённый → покровитель
+  f.aggr = f.aggr || {};      // ход последней агрессии без повода
+  f.stat = f.stat || {};      // счётчики игроков (для достижений и итогов)
+  f.hist = f.hist || { t: [], d: {} };
+  f.un = f.un || { next: 6, cur: null, sanc: {}, act: {}, hist: [], q: [] };
+  if (!S.access) S.access = {}; // военный доступ 'кто>к кому'
+  return f;
+}
+const st = nid => { const f = F3(); return (f.stat[nid] = f.stat[nid] || { won: 0, lost: 0, capt: 0, nukes: 0, peace: 0, annex: 0, ev: 0, unPass: 0, veto: 0, survive: 0, david: 0, peaceT: 0, minStab: 100 }); };
+const hasCB = (a, b) => (F3().cb[a + '>' + b] || 0) > S.turn;
+const isSanctioned = nid => (F3().un.sanc[nid] || 0) > S.turn;
+const embargoed = (a, b) => (F3().emb[a + '>' + b] || 0) > S.turn || (F3().emb[b + '>' + a] || 0) > S.turn;
+const vassalOf = nid => F3().vas[nid] || null;
+const vassalsOf = nid => Object.keys(F3().vas).filter(x => F3().vas[x] === nid && S.nations[x] && S.nations[x].alive);
+const guarantorsOf = nid => Object.keys(F3().guar).filter(k => k.endsWith('>' + nid)).map(k => k.split('>')[0]).filter(g => S.nations[g] && S.nations[g].alive);
+const guaranteesBy = nid => Object.keys(F3().guar).filter(k => k.startsWith(nid + '>')).map(k => k.split('>')[1]).filter(g => S.nations[g] && S.nations[g].alive);
+const sciPacts = nid => Object.keys(F3().sci).filter(k => k.split('|').includes(nid)).length;
+const grossOf = nid => Math.max(5, (nat(nid).last && nat(nid).last.gross) || economy(nid).gross);
+
+function addTmp(nid, k, v, turns, src) {
+  const n = nat(nid);
+  n.mods = n.mods || {};
+  n.mods[k] = (n.mods[k] || 0) + v;
+  F3().tm.push({ n: nid, k, v, u: S.turn + turns, s: src || '' });
+}
+function dropTmp(pred) {
+  const f = F3();
+  f.tm = f.tm.filter(t => {
+    if (!pred(t)) return true;
+    const n = S.nations[t.n];
+    if (n && n.mods) n.mods[t.k] = (n.mods[t.k] || 0) - t.v;
+    return false;
+  });
+}
+function permMod(nid, k, v) { const n = nat(nid); n.mods = n.mods || {}; n.mods[k] = (n.mods[k] || 0) + v; }
+
+// ================================================================= хуки из game.js
+function onWarDeclared(a, b, cb) {
+  const f = F3();
+  if (!cb) f.aggr[a] = S.turn;
+  // нападение на того, кому сами давали гарантии
+  if (f.guar[a + '>' + b]) {
+    delete f.guar[a + '>' + b];
+    Object.keys(S.nations).forEach(x => { if (x !== a && S.nations[x].alive) addRel(x, a, -10); });
+    log(`💔 ${nat(a).name} нарушает собственные гарантии независимости ${nat(b).name}!`, 'big', null);
+  }
+  // гаранты защищают
+  guarantorsOf(b).forEach(g => {
+    if (g === a || atWar(g, a) || allied(g, a)) return;
+    if (isHuman(g)) { joinWar(g, a, b); notify(g, { type: 'guarCall', from: b, enemy: a }); return; }
+    if (rel(g, a) < 45 && Math.random() < 0.8) { joinWar(g, a, b); log(`🛡 ${nat(g).name} выполняет гарантии и вступает в войну против ${nat(a).name}.`, 'war', null); }
+    else { delete f.guar[g + '>' + b]; addRel(g, b, -30); log(`${nat(g).name} отказывается от гарантий, данных ${nat(b).name}.`, 'info', null); }
+  });
+  // сателлиты следуют за покровителем
+  vassalsOf(a).forEach(v => { if (!atWar(v, b) && !allied(v, b) && v !== b && nat(v).ai) joinWar(v, b, a); });
+  vassalsOf(b).forEach(v => { if (!atWar(v, a) && !allied(v, a) && v !== a && nat(v).ai) joinWar(v, a, b); });
+  // военный доступ между врагами прекращается
+  delete S.access[a + '>' + b]; delete S.access[b + '>' + a];
+  if (isHuman(a)) st(a).peaceT = 0;
+}
+function onPeace(a, b) {
+  [a, b].forEach((x, i) => {
+    if (!isHuman(x)) return;
+    const s = st(x), o = i ? a : b;
+    s.peace++;
+    if (S.nations[o] && nationPower(o) > nationPower(x) * 2 && nat(x).alive) s.survive = 1;
+  });
+}
+function onNuke(nid, target, k) {
+  if (isHuman(nid)) st(nid).nukes++;
+  S.flags.unNuked = 1;
+  const un = F3().un;
+  if ((un.act.nukeBan || 0) > S.turn && !isSanctioned(nid)) {
+    un.sanc[nid] = S.turn + 36;
+    addTmp(nid, 'income', -0.15, 36, 'sanc');
+    Object.keys(S.nations).forEach(x => { if (x !== nid && S.nations[x].alive) addRel(x, nid, -20); });
+    log(`🌐 ${unName()}: ${nat(nid).name} нарушила запрет ядерного оружия — автоматические санкции на 3 года!`, 'big', null);
+    G.supVer++;
+  }
+}
+function onEliminate(nid, by) {
+  if (by && isHuman(by)) st(by).annex++;
+  const f = F3();
+  delete f.vas[nid];
+  for (const k of Object.keys(f.vas)) if (f.vas[k] === nid) delete f.vas[k];
+  for (const m of [f.guar, f.cb, f.emb, S.access]) for (const k of Object.keys(m)) if (k.split('>').includes(nid)) delete m[k];
+  for (const k of Object.keys(f.sci)) if (k.split('|').includes(nid)) { delete f.sci[k]; const o = k.split('|').find(x => x !== nid); if (S.nations[o]) permMod(o, 'research', -0.08); }
+}
+// подсчёт захваченных провинций
+(function () {
+  const cap0 = captureProvince;
+  captureProvince = function (p, o) {
+    const prev = S.prov[p].o;
+    const r = cap0.apply(this, arguments);
+    if (S.prov[p].o === o && prev !== o && isHuman(o)) st(o).capt++;
+    return r;
+  };
+  // эмбарго и сателлиты в обычной дипломатии
+  const dip0 = diplomacy;
+  diplomacy = function (from, to, action) {
+    if (action === 'trade' && embargoed(from, to)) return 'Действует эмбарго — торговый договор невозможен';
+    if (action === 'breakAlliance' && (vassalOf(to) === from || vassalOf(from) === to)) return 'Нельзя: это союз покровителя и сателлита. Сначала освободите сателлит.';
+    if (action === 'war' && vassalOf(from)) return 'Сателлит не ведёт самостоятельную внешнюю политику';
+    return dip0.apply(this, arguments);
+  };
+  // сателлит-ИИ сам войн не объявляет
+  const war0 = declareWar;
+  declareWar = function (a, b) {
+    if (S.nations[a] && S.nations[a].ai && vassalOf(a)) return 'Сателлит не ведёт самостоятельную внешнюю политику';
+    return war0.apply(this, arguments);
+  };
+})();
+
+// ================================================================= расширенная дипломатия
+const DIP2 = {
+  gift: { name: 'Подарок', icon: '🎁' },
+  access: { name: 'Запросить военный доступ', icon: '🛤' },
+  giveAccess: { name: 'Дать военный доступ', icon: '🛤' },
+  revokeAccess: { name: 'Отозвать военный доступ', icon: '⛔' },
+  guarantee: { name: 'Гарантировать независимость', icon: '🛡' },
+  unguarantee: { name: 'Снять гарантии', icon: '🛡' },
+  embargo: { name: 'Эмбарго', icon: '🚫' },
+  liftEmbargo: { name: 'Снять эмбарго', icon: '✅' },
+  denounce: { name: 'Публичное осуждение', icon: '📢' },
+  sci: { name: 'Научное сотрудничество', icon: '🔭' },
+  sciCancel: { name: 'Разорвать научный пакт', icon: '🔭' },
+  demand: { name: 'Ультиматум: требовать провинцию', icon: '📜' },
+  vassal: { name: 'Сделать сателлитом', icon: '👑' },
+  release: { name: 'Освободить сателлит', icon: '🕊' },
+};
+function giftCost(nid) { return Math.max(10, Math.round(relationCost(nid) * 2)); }
+function demandTargets(from, to) {
+  const out = new Set();
+  provsOf(from).forEach(id => prov(id).n.forEach(x => { if (S.prov[x].o === to && x !== nat(to).capital) out.add(x); }));
+  return [...out].sort((a, b) => (S.prov[b].core === from) - (S.prov[a].core === from) || S.prov[b].pop - S.prov[a].pop).slice(0, 10);
+}
+function sideWithGuards(nid) {
+  return powerOfSide(nid) + guarantorsOf(nid).reduce((s, g) => s + nationPower(g) * 0.6, 0);
+}
+function aiAccepts2(ai, from, kind, arg) {
+  const r = rel(ai, from);
+  if (kind === 'access') return !atWar(ai, from) && (allied(ai, from) || r > 35 || (r > 0 && enemiesOf(ai).some(e => atWar(from, e))));
+  if (kind === 'sci') return !atWar(ai, from) && r > 25 && sciPacts(ai) < 4;
+  if (kind === 'demand') return !atWar(ai, from) && powerOfSide(from) > sideWithGuards(ai) * 3 && nat(ai).stab < 80;
+  if (kind === 'vassal') {
+    if (vassalOf(ai) || vassalsOf(ai).length) return false;
+    const T = nat(ai);
+    if (atWar(ai, from)) return warScore(ai, from) < -35 && nationPower(ai) < nationPower(from) * 0.5;
+    return T.minor && r > 40 && powerOfSide(from) > nationPower(ai) * 4 && !guarantorsOf(ai).length;
+  }
+  return false;
+}
+function setVassal(sub, over) {
+  const f = F3();
+  if (atWar(sub, over)) makePeace(sub, over);
+  f.vas[sub] = over;
+  S.ally[pk(sub, over)] = 1;
+  S.trade[pk(sub, over)] = 1;
+  delete S.nap[pk(sub, over)];
+  guarantorsOf(sub).forEach(g => delete f.guar[g + '>' + sub]);
+  setRel(sub, over, Math.max(rel(sub, over), 30));
+  log(`👑 ${nat(sub).name} становится сателлитом ${nat(over).name}.`, 'big', null);
+  G.supVer++;
+}
+function transferProv(p, to) {
+  const ps = S.prov[p], from = ps.o;
+  ps.o = to; ps.occ = 3; ps.bq = null;
+  armiesIn(p).forEach(a => { if (a.o === from) { a.p = nat(from).capital; a.path = []; } });
+  G.supVer++;
+}
+// действия: возвращают текст результата
+function diplomacy2(from, to, act, arg) {
+  const F = nat(from), T = S.nations[to], f = F3();
+  if (!T || !T.alive || to === from) return 'Нет такой страны';
+  if (vassalOf(from) && ['guarantee', 'embargo', 'demand', 'vassal'].includes(act)) return 'Сателлит не ведёт самостоятельную внешнюю политику';
+  const cd = (k, t) => { const v = F.cool[to + k] || -99; if (S.turn - v < t) return true; F.cool[to + k] = S.turn; return false; };
+  const human = isHuman(to);
+  switch (act) {
+    case 'gift': {
+      const c = giftCost(from);
+      if (F.gold < c) return 'Недостаточно средств';
+      if ((F.cool[to + 'gift'] || -99) > S.turn - 3) return 'Подождите пару ходов перед следующим подарком';
+      F.cool[to + 'gift'] = S.turn;
+      F.gold -= c; T.gold += c;
+      const d = T.minor ? 18 : 12;
+      addRel(to, from, d);
+      if (human) log(`🎁 ${F.name} преподносит вам подарок: 💰${fmt(c)}.`, 'good', to);
+      return `Подарок отправлен: 💰${fmt(c)}. Отношения +${d}.`;
+    }
+    case 'access': {
+      if (S.access[from + '>' + to]) return 'Военный доступ уже есть';
+      if (atWar(from, to)) return 'Нельзя во время войны';
+      if (allied(from, to)) return 'Союзникам доступ не нужен — он уже есть';
+      if (human) { if (S.pending.some(x => x.to === to && x.from === from && x.type === 'access')) return 'Запрос уже отправлен — ждём ответа'; notify(to, { type: 'access', from }); return `Запрос отправлен: ${T.name} (решает игрок).`; }
+      if (cd('access', 3)) return 'Запрос недавно отклонён — подождите';
+      if (!aiAccepts2(to, from, 'access')) return `${T.name} отказывает в военном доступе.`;
+      S.access[from + '>' + to] = 1; G.supVer++;
+      return `${T.name} предоставляет военный доступ: ваши армии могут проходить по её территории.`;
+    }
+    case 'giveAccess':
+      if (S.access[to + '>' + from]) return 'Доступ уже предоставлен';
+      if (atWar(from, to)) return 'Нельзя во время войны';
+      S.access[to + '>' + from] = 1; addRel(to, from, 5); G.supVer++;
+      if (human) log(`🛤 ${F.name} открывает вам военный доступ.`, 'good', to);
+      return `${T.name} получает военный доступ на вашу территорию.`;
+    case 'revokeAccess': {
+      if (!S.access[to + '>' + from]) return 'Доступа нет';
+      delete S.access[to + '>' + from]; addRel(to, from, -10); G.supVer++;
+      Object.values(S.armies).forEach(a => { if (a.o === to && !a.emb && S.prov[a.p].o === from) { a.p = T.capital; a.path = []; } });
+      if (human) log(`⛔ ${F.name} отзывает ваш военный доступ — войска возвращаются домой.`, 'bad', to);
+      return `Военный доступ для ${T.name} отозван, её войска покинули вашу территорию.`;
+    }
+    case 'guarantee': {
+      if (f.guar[from + '>' + to]) return 'Гарантии уже даны';
+      if (atWar(from, to)) return 'Нельзя во время войны';
+      if (vassalOf(to)) return 'Это сателлит другой державы';
+      const lim = F.minor ? 2 : 6;
+      if (guaranteesBy(from).length >= lim) return `Слишком много гарантий (максимум ${lim})`;
+      f.guar[from + '>' + to] = 1; addRel(to, from, 15);
+      log(`🛡 ${F.name} гарантирует независимость ${T.name}.`, 'big', null);
+      return `Вы гарантировали независимость ${T.name}: если на неё нападут, вы вступите в войну.`;
+    }
+    case 'unguarantee':
+      if (!f.guar[from + '>' + to]) return 'Гарантий нет';
+      delete f.guar[from + '>' + to]; addRel(to, from, -15);
+      return `Гарантии независимости ${T.name} сняты.`;
+    case 'embargo': {
+      if ((f.emb[from + '>' + to] || 0) > S.turn) return 'Эмбарго уже действует';
+      if (allied(from, to)) return 'Нельзя: вы союзники';
+      f.emb[from + '>' + to] = S.turn + 24;
+      delete S.trade[pk(from, to)];
+      addRel(to, from, -20);
+      const v = F.minor ? -0.015 : -0.05;
+      addTmp(to, 'income', v, 24, 'emb:' + from + '>' + to);
+      log(`🚫 ${F.name} вводит торговое эмбарго против ${T.name}.`, 'big', null);
+      return `Эмбарго на 2 года: доход ${T.name} ${Math.round(v * 100)}%, торговля между вами запрещена.`;
+    }
+    case 'liftEmbargo':
+      if (!((f.emb[from + '>' + to] || 0) > S.turn)) return 'Эмбарго нет';
+      delete f.emb[from + '>' + to];
+      dropTmp(t => t.s === 'emb:' + from + '>' + to);
+      addRel(to, from, 8);
+      return `Эмбарго против ${T.name} снято.`;
+    case 'denounce': {
+      if (cd('denounce', 6)) return 'Подождите: осуждать можно раз в полгода';
+      addRel(to, from, -15);
+      let n2 = 0;
+      Object.keys(S.nations).forEach(x => { if (x !== from && x !== to && S.nations[x].alive && (atWar(x, to) || rel(x, to) < -20)) { addRel(x, from, 5); n2++; } });
+      if (['authoritarian', 'fascism', 'communist'].includes(F.gov)) F.stab = Math.min(100, F.stab + 2);
+      log(`📢 ${F.name} публично осуждает политику ${T.name}.`, 'info', null);
+      return `Осуждение: отношения с ${T.name} −15, с её недругами (${n2}) +5.`;
+    }
+    case 'sci': {
+      const k = pk(from, to);
+      if (f.sci[k]) return 'Пакт уже действует';
+      if (atWar(from, to)) return 'Нельзя во время войны';
+      if (sciPacts(from) >= 4) return 'Не больше 4 научных пактов';
+      if (human) { if (S.pending.some(x => x.to === to && x.from === from && x.type === 'sci')) return 'Предложение уже отправлено'; notify(to, { type: 'sci', from }); return `Предложение отправлено: ${T.name} (решает игрок).`; }
+      if (cd('sci', 3)) return 'Предложение недавно отклонено — подождите';
+      if (!aiAccepts2(to, from, 'sci')) return `${T.name} отклоняет научное сотрудничество (нужны отношения выше +25).`;
+      f.sci[k] = 1; permMod(from, 'research', 0.08); permMod(to, 'research', 0.08); addRel(from, to, 5);
+      return `Научный пакт с ${T.name}: +8% к науке обеим странам.`;
+    }
+    case 'sciCancel': {
+      const k = pk(from, to);
+      if (!f.sci[k]) return 'Пакта нет';
+      delete f.sci[k]; permMod(from, 'research', -0.08); permMod(to, 'research', -0.08); addRel(to, from, -10);
+      return 'Научный пакт расторгнут.';
+    }
+    case 'demand': {
+      const p = +arg;
+      if (atWar(from, to)) return 'Во время войны — используйте мирный договор';
+      if (allied(from, to)) return 'Нельзя: вы союзники';
+      if (!demandTargets(from, to).includes(p)) return 'Можно требовать только пограничную провинцию (не столицу)';
+      if (human && S.turn < (S.flags.truce || 0)) return `Перемирие между игроками до хода ${S.flags.truce}`;
+      if (cd('demand', 12)) return 'Ультиматум этой стране можно выдвигать раз в год';
+      if (human) { notify(to, { type: 'demand', from, p }); return `Ультиматум отправлен: ${T.name} (решает игрок).`; }
+      if (aiAccepts2(to, from, 'demand')) {
+        transferProv(p, from); addRel(to, from, -25);
+        log(`📜 ${T.name} уступает ${provName(p)} под давлением ${F.name}.`, 'big', null);
+        return `${T.name} принимает ультиматум: ${provName(p)} переходит к вам!`;
+      }
+      f.cb[from + '>' + to] = S.turn + 24; addRel(to, from, -20);
+      return `${T.name} отвергает ультиматум. У вас есть повод для войны (2 года): объявление войны не снизит стабильность.`;
+    }
+    case 'vassal': {
+      if (human) return 'Игрока нельзя сделать сателлитом';
+      if (vassalOf(to)) return 'Уже сателлит';
+      if (cd('vassal', 3)) return 'Подождите пару ходов';
+      if (!aiAccepts2(to, from, 'vassal')) return atWar(from, to) ? `${T.name} не сдаётся: нужен перевес в войне и мощь вдвое выше.` : `${T.name} отказывается (малая страна, отношения выше +40, ваша сила в 4 раза больше, нет гарантов).`;
+      setVassal(to, from);
+      return `${T.name} становится вашим сателлитом: платит 15% дохода и воюет на вашей стороне.`;
+    }
+    case 'release':
+      if (vassalOf(to) !== from) return 'Это не ваш сателлит';
+      delete f.vas[to]; addRel(to, from, 30);
+      log(`🕊 ${F.name} освобождает ${T.name} — страна снова независима.`, 'info', null);
+      return `${T.name} снова независима (союз сохранён).`;
+  }
+  return '';
+}
+
+// ответы игрока на новые предложения
+(function () {
+  const ans0 = answerPending;
+  answerPending = function (nid, id, yes) {
+    const o = S.pending.find(x => x.id === id && x.to === nid);
+    if (!o || !['access', 'sci', 'demand', 'unPeace'].includes(o.type)) return ans0.apply(this, arguments);
+    S.pending.splice(S.pending.indexOf(o), 1);
+    const F = o.from && S.nations[o.from];
+    if (!F || !F.alive) return null;
+    const me = nat(nid), f = F3();
+    if (o.type === 'access') {
+      if (yes && !atWar(nid, o.from)) { S.access[o.from + '>' + nid] = 1; addRel(nid, o.from, 5); G.supVer++; }
+      else addRel(nid, o.from, -5);
+    }
+    if (o.type === 'sci') {
+      if (yes && !f.sci[pk(nid, o.from)] && !atWar(nid, o.from)) { f.sci[pk(nid, o.from)] = 1; permMod(nid, 'research', 0.08); permMod(o.from, 'research', 0.08); addRel(nid, o.from, 5); }
+      else if (!yes) addRel(nid, o.from, -5);
+    }
+    if (o.type === 'demand') {
+      if (yes && S.prov[o.p] && S.prov[o.p].o === nid) { transferProv(o.p, o.from); addRel(nid, o.from, -15); log(`📜 ${me.name} уступает ${provName(o.p)} по ультиматуму ${F.name}.`, 'big', null); }
+      else if (!yes) { f.cb[o.from + '>' + nid] = S.turn + 24; addRel(nid, o.from, -20); if (isHuman(o.from)) log(`${me.name} отвергает ультиматум — у вас есть повод для войны (2 года).`, 'warn', o.from); }
+    }
+    if (o.type === 'unPeace') {
+      if (yes && atWar(nid, o.from)) makePeace(nid, o.from);
+      else if (!yes && atWar(nid, o.from)) {
+        me.stab = Math.max(0, me.stab - 8);
+        Object.keys(S.nations).forEach(x => { if (x !== nid && S.nations[x].alive) addRel(x, nid, -5); });
+        log(`🌐 ${me.name} игнорирует призыв ${unName()} к миру.`, 'warn', null);
+      }
+    }
+    if (isHuman(o.from) && o.type !== 'unPeace') log(`${me.name} ${yes ? 'принимает' : 'отклоняет'}: ${DIP2[o.type] ? DIP2[o.type].name.toLowerCase() : o.type}.`, yes ? 'good' : 'bad', o.from);
+    return yes ? 'Принято' : 'Отклонено';
+  };
+})();
+
+// ================================================================= события с выбором
+// a.g — «месячный доход» на момент события: суммы в подсказках и в эффектах совпадают
+const evGold = (n, v) => { n.gold += v; };
+const evStab = (n, v) => { n.stab = clamp(n.stab + v, 0, 100); };
+const evMp = (n, frac) => { n.mp = Math.max(0, n.mp + manpowerCap(n.id) * frac); };
+const evRp = (n, pts) => { n.res.pts += pts; };
+const rpOf = n => Math.round(techCost(n.tech[n.res.branch] || 0) * 0.35);
+const pickNation = (nid, pred) => {
+  const list = Object.values(S.nations).filter(x => x.alive && x.id !== nid && pred(x));
+  return list.length ? list[Math.floor(Math.random() * list.length)].id : null;
+};
+const neighboursOf = nid => { const s = new Set(); provsOf(nid).forEach(id => prov(id).n.forEach(x => { if (S.prov[x].o !== nid) s.add(S.prov[x].o); })); return [...s]; };
+const atWarAny = nid => enemiesOf(nid).length > 0;
+const mon = v => '💰' + fmt(Math.abs(v));
+
+const EVENTS = [
+  { id: 'strike', icon: '🏭', title: 'Забастовка на заводах', cond: n => provsOf(n.id).some(p => S.prov[p].b.factory),
+    text: () => 'Рабочие крупнейших заводов прекратили работу и требуют повышения зарплат. Производство встало.',
+    opts: [
+      { t: 'Пойти на уступки', h: a => `${mon(a.g * 2)} · стабильность +5`, fx: (n, a) => { evGold(n, -a.g * 2); evStab(n, 5); } },
+      { t: 'Разогнать забастовщиков', h: () => 'стабильность −8', fx: n => evStab(n, -8) },
+      { t: 'Тянуть время', h: () => 'доход −10% на 6 ходов', fx: n => addTmp(n.id, 'income', -0.1, 6, 'ev') },
+    ] },
+  { id: 'defector', icon: '🧪', title: 'Учёный-перебежчик', setup: n => pickNation(n.id, x => x.major && !allied(x.id, n.id)), cond: (n, a) => !!a,
+    text: (n, a) => `Ведущий учёный из страны «${nat(a.o).name}» просит убежища и предлагает свои разработки.`,
+    opts: [
+      { t: 'Принять учёного', h: a => `+${a.rp} очков науки · отношения с ${nat(a.o).name} −15`, fx: (n, a) => { evRp(n, a.rp); addRel(n.id, a.o, -15); } },
+      { t: 'Выдать обратно', h: a => `отношения с ${nat(a.o).name} +15`, fx: (n, a) => addRel(n.id, a.o, 15) },
+    ] },
+  { id: 'famine', icon: '🌾', title: 'Неурожай', cond: () => true,
+    text: () => 'Засуха уничтожила урожай в нескольких провинциях. Цены на хлеб растут.',
+    opts: [
+      { t: 'Закупить зерно за границей', h: a => mon(a.g * 3), fx: (n, a) => evGold(n, -a.g * 3) },
+      { t: 'Ввести карточки', h: () => 'стабильность −10', fx: n => evStab(n, -10) },
+    ] },
+  { id: 'harvest', icon: '🌻', title: 'Рекордный урожай', cond: () => true,
+    text: () => 'Погода благоприятствовала: урожай — лучший за десятилетие.',
+    opts: [
+      { t: 'Продать излишки', h: a => `+${mon(a.g * 3)}`, fx: (n, a) => evGold(n, a.g * 3) },
+      { t: 'Снизить цены для народа', h: () => 'стабильность +6', fx: n => evStab(n, 6) },
+    ] },
+  { id: 'oil', icon: '🛢', title: 'Разведано месторождение нефти', cond: () => S.period >= 1939,
+    text: () => 'Геологи нашли крупное месторождение. Иностранные компании уже предлагают концессию.',
+    opts: [
+      { t: 'Разрабатывать самим', h: a => `${mon(a.g * 2)} · нефть +${a.oil}`, fx: (n, a) => { evGold(n, -a.g * 2); n.oil += a.oil; } },
+      { t: 'Продать концессию', h: a => `+${mon(a.g * 4)}`, fx: (n, a) => evGold(n, a.g * 4) },
+    ] },
+  { id: 'corrupt', icon: '💼', title: 'Коррупционный скандал', cond: () => true,
+    text: () => 'Газеты публикуют доказательства: министры брали взятки с военных подрядов.',
+    opts: [
+      { t: 'Показательный процесс', h: () => 'стабильность −4 · доход +5% на 12 ходов', fx: n => { evStab(n, -4); addTmp(n.id, 'income', 0.05, 12, 'ev'); } },
+      { t: 'Замять дело', h: a => mon(a.g * 1.5), fx: (n, a) => evGold(n, -a.g * 1.5) },
+      { t: 'Ничего не делать', h: () => 'стабильность −8', fx: n => evStab(n, -8) },
+    ] },
+  { id: 'epidemic', icon: '🦠', title: 'Эпидемия', cond: () => true,
+    text: n => `Вспышка болезни в крупных городах.${(n.tech.med || 0) >= 3 ? ' Развитая медицина поможет справиться.' : ''}`,
+    opts: [
+      { t: 'Карантин', h: () => 'доход −15% на 4 хода', fx: n => addTmp(n.id, 'income', -0.15, 4, 'ev') },
+      { t: 'Положиться на врачей', h: (a, n) => ((n.tech.med || 0) >= 3 ? 'резерв призывников −5%' : 'резерв призывников −20% · стабильность −6'), fx: n => { if ((n.tech.med || 0) >= 3) evMp(n, -0.05); else { evMp(n, -0.2); evStab(n, -6); } } },
+    ] },
+  { id: 'hero', icon: '🎖', title: 'Народный герой', cond: n => atWarAny(n.id),
+    text: () => 'Подвиг простого солдата облетел все газеты страны.',
+    opts: [
+      { t: 'Сделать символом войны', h: () => 'усталость от войны −10 · стабильность +4', fx: n => { n.weary = Math.max(0, n.weary - 10); evStab(n, 4); } },
+      { t: 'Призвать добровольцев его именем', h: () => 'резерв призывников +15%', fx: n => evMp(n, 0.15) },
+    ] },
+  { id: 'invest', icon: '🏦', title: 'Иностранные инвесторы', cond: n => !atWarAny(n.id),
+    text: () => 'Зарубежный капитал готов вложиться в нашу промышленность — в обмен на льготы.',
+    opts: [
+      { t: 'Открыть рынок', h: a => `+${mon(a.g * 5)} · стабильность ${a.auth ? '−6' : '−2'}`, fx: (n, a) => { evGold(n, a.g * 5); evStab(n, a.auth ? -6 : -2); } },
+      { t: 'Отказать', h: () => 'стабильность +2', fx: n => evStab(n, 2) },
+    ] },
+  { id: 'refugees', icon: '🧳', title: 'Беженцы', setup: n => neighboursOf(n.id).find(x => atWarAny(x) && x !== n.id) || null, cond: (n, a) => !!a,
+    text: (n, a) => `Тысячи людей бегут от войны из страны «${nat(a.o).name}» и просят убежища.`,
+    opts: [
+      { t: 'Принять', h: a => `${mon(a.g)} · резерв +8% · отношения с ${nat(a.o).name} +10`, fx: (n, a) => { evGold(n, -a.g); evMp(n, 0.08); addRel(n.id, a.o, 10); provsOf(n.id).slice(0, 3).forEach(p => { S.prov[p].pop *= 1.01; }); } },
+      { t: 'Закрыть границу', h: () => 'стабильность +2 · отношения −5', fx: (n, a) => { evStab(n, 2); addRel(n.id, a.o, -5); } },
+    ] },
+  { id: 'parade', icon: '🎺', title: 'Военный парад', cond: () => true,
+    text: () => 'Генералы предлагают провести парад в столице, чтобы показать силу соседям.',
+    opts: [
+      { t: 'Провести парад', h: a => `${mon(a.g)} · стабильность +4 · отношения с соседями −3`, fx: (n, a) => { evGold(n, -a.g); evStab(n, 4); neighboursOf(n.id).forEach(x => addRel(n.id, x, -3)); } },
+      { t: 'Отменить — деньги нужнее', h: () => 'без последствий', fx: () => {} },
+    ] },
+  { id: 'summit', icon: '🤝', title: 'Международный саммит', cond: () => true,
+    text: () => 'Великие державы собираются на конференцию. Нас тоже пригласили.',
+    opts: [
+      { t: 'Отправить делегацию', h: a => `${mon(a.g)} · отношения с 4 державами +10`, fx: (n, a) => { evGold(n, -a.g); Object.values(S.nations).filter(x => x.alive && x.major && x.id !== n.id).sort(() => Math.random() - 0.5).slice(0, 4).forEach(x => addRel(n.id, x.id, 10)); } },
+      { t: 'Бойкотировать', h: () => 'стабильность +3 · отношения с державами −3', fx: n => { evStab(n, 3); Object.values(S.nations).filter(x => x.alive && x.major && x.id !== n.id).forEach(x => addRel(n.id, x.id, -3)); } },
+    ] },
+  { id: 'inventor', icon: '💡', title: 'Гениальный изобретатель', cond: () => true,
+    text: () => 'Молодой инженер принёс в министерство чертежи революционного изобретения.',
+    opts: [
+      { t: 'Государственный заказ', h: a => `${mon(a.g * 2)} · +${a.rp} очков науки`, fx: (n, a) => { evGold(n, -a.g * 2); evRp(n, a.rp); } },
+      { t: 'Пусть внедряют частники', h: () => 'доход +4% на 24 хода', fx: n => addTmp(n.id, 'income', 0.04, 24, 'ev') },
+    ] },
+  { id: 'spy', icon: '🕵', title: 'Пойман шпион', setup: n => pickNation(n.id, x => !x.minor && rel(n.id, x.id) < 30), cond: (n, a) => !!a,
+    text: (n, a) => `Контрразведка задержала агента страны «${nat(a.o).name}» с секретными документами.`,
+    opts: [
+      { t: 'Открытый процесс', h: a => `стабильность +3 · отношения с ${nat(a.o).name} −15`, fx: (n, a) => { evStab(n, 3); addRel(n.id, a.o, -15); } },
+      { t: 'Обменять на нашего агента', h: a => `отношения с ${nat(a.o).name} +5`, fx: (n, a) => addRel(n.id, a.o, 5) },
+      { t: 'Перевербовать', h: a => `+${Math.round(a.rp / 2)} очков науки (украденные чертежи)`, fx: (n, a) => evRp(n, Math.round(a.rp / 2)) },
+    ] },
+  { id: 'disaster', icon: '🌊', title: 'Стихийное бедствие', cond: () => true,
+    text: () => 'Наводнение разрушило дороги, мосты и жилые кварталы.',
+    opts: [
+      { t: 'Восстановить за счёт казны', h: a => `${mon(a.g * 3)} · стабильность +2`, fx: (n, a) => { evGold(n, -a.g * 3); evStab(n, 2); } },
+      { t: 'Экономить', h: () => 'стабильность −8 · доход −10% на 6 ходов', fx: n => { evStab(n, -8); addTmp(n.id, 'income', -0.1, 6, 'ev'); } },
+    ] },
+  { id: 'plot', icon: '🗡', title: 'Заговор генералов', cond: n => n.stab < 45,
+    text: () => 'Разведка докладывает: группа генералов готовит переворот.',
+    opts: [
+      { t: 'Чистка в армии', h: () => 'резерв −10% · стабильность +6', fx: n => { evMp(n, -0.1); evStab(n, 6); } },
+      { t: 'Купить лояльность', h: a => `${mon(a.g * 3)} · стабильность +3`, fx: (n, a) => { evGold(n, -a.g * 3); evStab(n, 3); } },
+      { t: 'Игнорировать', h: () => 'риск восстания 40%', fx: n => { if (Math.random() < 0.4) revolt(n.id); } },
+    ] },
+  { id: 'boom', icon: '📈', title: 'Биржевой бум', cond: () => true,
+    text: () => 'Акции растут как на дрожжах. Экономисты спорят: пузырь это или чудо?',
+    opts: [
+      { t: 'Охладить рынок', h: a => `+${mon(a.g)}`, fx: (n, a) => evGold(n, a.g) },
+      { t: 'Пусть растёт!', h: a => `+${mon(a.g * 5)} · риск 50%: кризис (доход −12% на 12 ходов)`, fx: (n, a) => { evGold(n, a.g * 5); if (Math.random() < 0.5) addTmp(n.id, 'income', -0.12, 12, 'ev'); } },
+    ] },
+  { id: 'volunteers', icon: '🙋', title: 'Добровольцы', cond: n => atWarAny(n.id),
+    text: () => 'У призывных пунктов очереди: тысячи добровольцев хотят на фронт.',
+    opts: [
+      { t: 'Принять всех', h: () => 'резерв призывников +20%', fx: n => evMp(n, 0.2) },
+      { t: 'Отправить на заводы', h: a => `+${mon(a.g * 2)}`, fx: (n, a) => evGold(n, a.g * 2) },
+    ] },
+  { id: 'students', icon: '🎓', title: 'Студенческие протесты', cond: n => S.period >= 1962 || n.gov === 'democracy',
+    text: () => 'Студенты вышли на улицы с требованием реформ.',
+    opts: [
+      { t: 'Начать диалог', h: a => `${mon(a.g)} · стабильность +3`, fx: (n, a) => { evGold(n, -a.g); evStab(n, 3); } },
+      { t: 'Разогнать', h: () => 'стабильность −5 · отношения с демократиями −5', fx: n => { evStab(n, -5); Object.values(S.nations).filter(x => x.alive && x.gov === 'democracy' && x.id !== n.id).forEach(x => addRel(n.id, x.id, -5)); } },
+    ] },
+  { id: 'race', icon: '🚀', title: 'Гонка вооружений', setup: n => pickNation(n.id, x => x.major && rel(n.id, x.id) < 0), cond: (n, a) => S.period >= 1939 && !!a,
+    text: (n, a) => `Страна «${nat(a.o).name}» испытала новое оружие. Генералы требуют ответа.`,
+    opts: [
+      { t: 'Ответить своей программой', h: a => `${mon(a.g * 3)} · +${a.rp} очков науки`, fx: (n, a) => { evGold(n, -a.g * 3); evRp(n, a.rp); } },
+      { t: 'Переговоры', h: a => `отношения с ${nat(a.o).name} +12`, fx: (n, a) => addRel(n.id, a.o, 12) },
+    ] },
+  { id: 'allyHelp', icon: '🆘', title: 'Союзник просит помощи', setup: n => alliesOf(n.id).find(x => atWarAny(x)) || null, cond: (n, a) => !!a,
+    text: (n, a) => `Наш союзник «${nat(a.o).name}» ведёт тяжёлую войну и просит денег на оружие.`,
+    opts: [
+      { t: 'Помочь', h: a => `${mon(a.g * 2)} · отношения +15`, fx: (n, a) => { evGold(n, -a.g * 2); nat(a.o).gold += a.g * 2; addRel(n.id, a.o, 15); } },
+      { t: 'Отказать', h: () => 'отношения −15', fx: (n, a) => addRel(n.id, a.o, -15) },
+    ] },
+  { id: 'border', icon: '🚧', title: 'Пограничный инцидент', setup: n => neighboursOf(n.id).find(x => rel(n.id, x) < 0 && !atWar(n.id, x)) || null, cond: (n, a) => !!a,
+    text: (n, a) => `Перестрелка на границе со страной «${nat(a.o).name}». Есть погибшие.`,
+    opts: [
+      { t: 'Извиниться', h: () => 'стабильность −3 · отношения +10', fx: (n, a) => { evStab(n, -3); addRel(n.id, a.o, 10); } },
+      { t: 'Потребовать извинений', h: () => 'стабильность +3 · отношения −15', fx: (n, a) => { evStab(n, 3); addRel(n.id, a.o, -15); } },
+      { t: 'Ответный огонь', h: () => 'повод для войны на 2 года · отношения −25', fx: (n, a) => { F3().cb[n.id + '>' + a.o] = S.turn + 24; addRel(n.id, a.o, -25); } },
+    ] },
+  { id: 'oilcrisis', icon: '⛽', title: 'Нефтяной кризис', cond: () => S.period >= 1962,
+    text: () => 'Цены на нефть взлетели вчетверо. Очереди на заправках.',
+    opts: [
+      { t: 'Распечатать резервы', h: () => 'запас нефти −30%', fx: n => { n.oil = Math.round(n.oil * 0.7); } },
+      { t: 'Режим экономии', h: () => 'стабильность −5', fx: n => evStab(n, -5) },
+    ] },
+  { id: 'jubilee', icon: '🎆', title: 'Национальный праздник', cond: () => true,
+    text: () => 'Страна отмечает юбилей государственности.',
+    opts: [
+      { t: 'Пышные торжества', h: a => `${mon(a.g * 1.5)} · стабильность +7`, fx: (n, a) => { evGold(n, -a.g * 1.5); evStab(n, 7); } },
+      { t: 'Скромно', h: () => 'стабильность +2', fx: n => evStab(n, 2) },
+    ] },
+  { id: 'migrants', icon: '🛠', title: 'Нехватка рабочих рук', cond: n => !atWarAny(n.id) && S.period >= 1962,
+    text: () => 'Заводам не хватает рабочих. Бизнес просит открыть границы для мигрантов.',
+    opts: [
+      { t: 'Привлечь мигрантов', h: () => 'доход +6% на 24 хода · стабильность −4', fx: n => { addTmp(n.id, 'income', 0.06, 24, 'ev'); evStab(n, -4); } },
+      { t: 'Автоматизация', h: a => `${mon(a.g * 3)} · +${Math.round(a.rp / 2)} очков науки`, fx: (n, a) => { evGold(n, -a.g * 3); evRp(n, Math.round(a.rp / 2)); } },
+    ] },
+];
+const EV = {}; EVENTS.forEach(e => { EV[e.id] = e; });
+
+function fireEvent(nid) {
+  const n = nat(nid);
+  const recent = n.evSeen || [];
+  const pool = EVENTS.filter(e => !recent.includes(e.id)).sort(() => Math.random() - 0.5);
+  for (const e of pool) {
+    const o = e.setup ? e.setup(n) : null;
+    if (e.setup && !o) continue;
+    const a = { o, g: Math.round(grossOf(nid)), rp: rpOf(n), oil: Math.round(40 + grossOf(nid) * 0.5), auth: ['authoritarian', 'fascism', 'communist'].includes(n.gov) };
+    if (!e.cond(n, o)) continue;
+    n.evSeen = recent.concat(e.id).slice(-8);
+    S.pending.push({ id: uid(), to: nid, type: 'event', ev: e.id, a });
+    return;
+  }
+}
+function evPick(nid, id, opt) {
+  const i = S.pending.findIndex(x => x.id === id && x.to === nid && x.type === 'event');
+  if (i < 0) return 'Событие устарело';
+  const o = S.pending.splice(i, 1)[0];
+  const e = EV[o.ev], op = e && e.opts[opt];
+  if (!op) return '';
+  op.fx(nat(nid), o.a);
+  st(nid).ev++;
+  log(`${e.icon} ${e.title}: «${op.t}».`, 'info', nid);
+  return `${e.icon} ${op.t}`;
+}
+
+// ================================================================= Мировой совет
+const UN_NAMES = { 1914: 'Конгресс держав', 1939: 'Лига Наций', 1962: 'ООН', 2025: 'ООН' };
+const UN_VETO = { 1962: ['USA', 'SOV', 'GBR', 'FRA', 'CHN'], 2025: ['USA', 'RUS', 'GBR', 'FRA', 'CHN'] };
+const unName = () => UN_NAMES[S.period] || 'Мировой совет';
+const unVetoes = () => (UN_VETO[S.period] || []).filter(x => S.nations[x] && S.nations[x].alive);
+const UN_RES = {
+  sanctions: { name: 'Санкции', icon: '⛓', tgt: 1, desc: 'Доход цели −15%, импорт сырья только от союзников, торговые договоры с голосовавшими «за» расторгаются. 2 года.' },
+  condemn: { name: 'Осуждение агрессии', icon: '📢', tgt: 1, desc: 'Голосовавшие «за» ухудшают отношения с целью (−10), её стабильность −5.' },
+  peace: { name: 'Призыв к прекращению огня', icon: '🕊', tgt: 2, desc: 'Воюющие стороны должны заключить мир. Отказ: стабильность −8, отношения со всеми −5.' },
+  nukeBan: { name: 'Запрет ядерного оружия', icon: '☢', tgt: 0, desc: '10 лет. Применивший ядерное оружие автоматически попадает под санкции на 3 года.' },
+  aid: { name: 'Гуманитарная помощь', icon: '🎁', tgt: 1, desc: 'Цель получает средства фонда и +10 стабильности.' },
+  freeTrade: { name: 'Соглашение о свободной торговле', icon: '📦', tgt: 0, desc: 'Все проголосовавшие «за»: доход +5% на 5 лет.' },
+};
+const unWeight = nid => (S.nations[nid].major ? 3 : 1);
+const unCost = () => Math.round(30 * P().costMul);
+function resTitle(r) {
+  const R0 = UN_RES[r.k];
+  if (!R0) return '';
+  if (r.k === 'peace') return `${R0.name}: ${nat(r.t).name} — ${nat(r.t2).name}`;
+  return R0.tgt ? `${R0.name}: ${nat(r.t).name}` : R0.name;
+}
+function unValid(r) {
+  const ok = x => x && S.nations[x] && S.nations[x].alive;
+  if (!UN_RES[r.k]) return false;
+  if (UN_RES[r.k].tgt >= 1 && !ok(r.t)) return false;
+  if (r.k === 'peace' && (!ok(r.t2) || !atWar(r.t, r.t2))) return false;
+  if (r.k === 'sanctions' && isSanctioned(r.t)) return false;
+  if (r.k === 'nukeBan' && (F3().un.act.nukeBan || 0) > S.turn) return false;
+  if (r.k === 'freeTrade' && (F3().un.act.freeTrade || 0) > S.turn) return false;
+  return true;
+}
+function unPropose(nid, k, t, t2) {
+  const un = F3().un, n = nat(nid);
+  if (!UN_RES[k]) return 'Нет такой резолюции';
+  if (un.q.some(x => x.by === nid) || (un.cur && un.cur.by === nid)) return 'Ваша резолюция уже на рассмотрении';
+  if (UN_RES[k].tgt >= 1 && (!t || !S.nations[t] || !S.nations[t].alive)) return 'Выберите страну';
+  if ((k === 'sanctions' || k === 'condemn') && t === nid) return 'Нельзя против себя';
+  if (k === 'peace') { t2 = t2 || enemiesOf(t).sort((x, y) => nationPower(y) - nationPower(x))[0]; if (!t2) return 'Эта страна ни с кем не воюет'; }
+  const r = { k, t: t || null, t2: t2 || null, by: nid };
+  if (!unValid(r)) return 'Сейчас такую резолюцию принять нельзя (уже действует или нет войны)';
+  const c = unCost();
+  if (n.gold < c) return 'Недостаточно средств';
+  n.gold -= c;
+  un.q.push(r);
+  return null;
+}
+function aiUnVote(v, r) {
+  const n = nat(v);
+  if (vassalOf(v) && r.votes && r.votes[vassalOf(v)]) return r.votes[vassalOf(v)];
+  const rr = x => (x ? rel(v, x) : 0);
+  let s = rr(r.by) / 5 + rnd(-15, 15);
+  if (r.k === 'sanctions' || r.k === 'condemn') {
+    if (v === r.t || allied(v, r.t) || vassalOf(r.t) === v || vassalOf(v) === r.t) return 'N';
+    s += -rr(r.t) / 2 + (atWar(v, r.t) ? 60 : 0) + (r.k === 'condemn' ? 10 : 0) + ((F3().aggr[r.t] || -99) > S.turn - 24 ? 15 : 0);
+  } else if (r.k === 'peace') {
+    if (v === r.t || v === r.t2) { const o = v === r.t ? r.t2 : r.t; return warScore(v, o) > 20 ? 'N' : 'y'; }
+    s += 30;
+    if ((allied(v, r.t) && warScore(r.t, r.t2) > 20) || (allied(v, r.t2) && warScore(r.t2, r.t) > 20)) s -= 50;
+  } else if (r.k === 'nukeBan') {
+    s += (n.nukes > 0 || (n.tech.nuke || 0) >= 3) ? -20 + (n.gov === 'democracy' ? 15 : 0) : 40;
+  } else if (r.k === 'aid') {
+    if (v === r.t) return 'y';
+    s += 25 + rr(r.t) / 3;
+  } else if (r.k === 'freeTrade') {
+    s += 20 + (n.econ === 'market' ? 15 : 0) - (['fascism', 'communist'].includes(n.gov) ? 25 : 0) - (isSanctioned(v) ? 40 : 0);
+  }
+  if (r.by === v) return 'y';
+  // 'N' — решительное «против»: только так держава с правом вето его применяет
+  return s > 15 ? 'y' : s < -35 ? 'N' : s < -15 ? 'n' : 'a';
+}
+function unAiProposal() {
+  const f = F3(), alive = Object.values(S.nations).filter(x => x.alive);
+  const cands = [];
+  alive.forEach(x => {
+    if ((f.aggr[x.id] || -99) > S.turn - 18 && enemiesOf(x.id).length) {
+      const victims = enemiesOf(x.id).filter(e => S.wars[pk(x.id, e)] && S.wars[pk(x.id, e)].att === x.id).length;
+      cands.push({ k: victims >= 2 || x.major ? 'sanctions' : 'condemn', t: x.id, w: 30 + victims * 15 + (x.major ? 10 : 0) });
+    }
+    if (x.minor && x.stab < 30 && !atWarAny(x.id)) cands.push({ k: 'aid', t: x.id, w: 12 });
+  });
+  if (S.flags.unNuked && !((f.un.act.nukeBan || 0) > S.turn)) cands.push({ k: 'nukeBan', w: 60 });
+  let bw = null, bv = 0;
+  for (const k in S.wars) {
+    const [a, b] = k.split('|');
+    if (!S.nations[a] || !S.nations[b]) continue;
+    const dur = S.turn - S.wars[k].start;
+    const v = (nationPower(a) + nationPower(b)) * (dur > 12 ? 1 : 0.3);
+    if (v > bv) { bv = v; bw = [a, b]; }
+  }
+  if (bw) cands.push({ k: 'peace', t: bw[0], t2: bw[1], w: 25 });
+  if (!((f.un.act.freeTrade || 0) > S.turn)) cands.push({ k: 'freeTrade', w: 8 });
+  if (S.period >= 1962 && !((f.un.act.nukeBan || 0) > S.turn)) cands.push({ k: 'nukeBan', w: 6 });
+  // не выносить то, что недавно провалилось
+  const recent = f.un.hist.filter(h => h.res !== 'pass').slice(0, 4);
+  const valid = cands.filter(c => unValid(c) && !recent.some(h => h.k === c.k && (h.t || null) === (c.t || null)));
+  if (!valid.length) return null;
+  let sum = valid.reduce((s, c) => s + c.w, 0), x = Math.random() * sum;
+  const c = valid.find(c2 => (x -= c2.w) < 0) || valid[0];
+  // автор — держава-ИИ, которой это выгодно
+  const by = alive.filter(n => n.ai && n.major && n.id !== c.t && n.id !== c.t2 && !allied(n.id, c.t || '')).sort((a, b) => (c.t ? rel(a.id, c.t) - rel(b.id, c.t) : 0) || nationPower(b.id) - nationPower(a.id))[0];
+  return by ? Object.assign({ by: by.id }, c) : null;
+}
+function unTick() {
+  const un = F3().un;
+  // итоги голосования
+  if (un.cur && S.turn >= un.cur.end) unResolve();
+  if (un.cur || S.turn < un.next) return;
+  un.next = S.turn + 12;
+  let r = null;
+  while (un.q.length && !r) { const x = un.q.shift(); if (unValid(x)) r = x; else if (S.nations[x.by]) nat(x.by).gold += unCost(); }
+  if (!r) r = unAiProposal();
+  if (!r) return;
+  un.cur = Object.assign({ id: uid(), end: S.turn + 1, votes: {}, d: dateStr() }, r);
+  log(`🌐 ${unName()}: на голосование вынесена резолюция «${resTitle(r)}» (автор — ${nat(r.by).name}).`, 'big', null);
+  humans().forEach(h => S.pending.push({ id: uid(), to: h, type: 'unVote', rid: un.cur.id }));
+}
+function unResolve() {
+  const un = F3().un, r = un.cur;
+  un.cur = null;
+  S.pending = S.pending.filter(x => !(x.type === 'unVote' && x.rid === r.id));
+  if (!unValid(r)) { log(`🌐 ${unName()}: резолюция «${UN_RES[r.k].name}» снята с голосования.`, 'info', null); return; }
+  const tally = { y: 0, n: 0, a: 0 }, yes = [];
+  let veto = null;
+  // сначала державы (сателлиты голосуют как покровитель)
+  const voters = Object.values(S.nations).filter(x => x.alive).sort((a, b) => b.major - a.major);
+  voters.forEach(x => {
+    let v = r.votes[x.id];
+    if (!v) v = x.ai ? aiUnVote(x.id, r) : 'a';
+    const strong = v === 'N' || (v === 'n' && !x.ai);   // игрок-постоянный член, голосующий «против», применяет вето
+    if (v === 'N') v = 'n';
+    r.votes[x.id] = v;
+    tally[v] += unWeight(x.id);
+    if (v === 'y') yes.push(x.id);
+    if (v === 'n' && strong && unVetoes().includes(x.id) && !veto) veto = x.id;
+  });
+  const total = tally.y + tally.n + tally.a;
+  let res = tally.y > tally.n && tally.y >= total * 0.25 ? 'pass' : 'fail';
+  if (res === 'pass' && veto) res = 'veto';
+  un.hist.unshift({ k: r.k, t: r.t, t2: r.t2, by: r.by, res, y: tally.y, n: tally.n, a: tally.a, d: r.d, veto, my: Object.fromEntries(humans().map(h => [h, r.votes[h]])) });
+  if (un.hist.length > 30) un.hist.length = 30;
+  const head = `🌐 ${unName()}: «${resTitle(r)}» — за ${tally.y}, против ${tally.n}, воздержались ${tally.a}.`;
+  if (res === 'veto') { log(`${head} Вето: ${nat(veto).name}.`, 'big', null); if (isHuman(veto)) st(veto).veto++; return; }
+  if (res === 'fail') { log(`${head} Резолюция не принята.`, 'big', null); return; }
+  log(`${head} Резолюция ПРИНЯТА.`, 'big', null);
+  if (isHuman(r.by)) st(r.by).unPass++;
+  const T = r.t && nat(r.t);
+  if (r.k === 'sanctions') {
+    un.sanc[r.t] = S.turn + 24;
+    addTmp(r.t, 'income', -0.15, 24, 'sanc');
+    yes.forEach(x => { delete S.trade[pk(x, r.t)]; });
+    G.supVer++;
+  } else if (r.k === 'condemn') {
+    yes.forEach(x => addRel(x, r.t, -10));
+    T.stab = Math.max(0, T.stab - 5);
+  } else if (r.k === 'peace') {
+    const A = nat(r.t), B = nat(r.t2);
+    if (A.ai && B.ai) makePeace(r.t, r.t2);
+    else {
+      if (!A.ai) notify(r.t, { type: 'unPeace', from: r.t2 });
+      if (!B.ai) notify(r.t2, { type: 'unPeace', from: r.t });
+    }
+  } else if (r.k === 'nukeBan') {
+    un.act.nukeBan = S.turn + 120;
+  } else if (r.k === 'aid') {
+    T.gold += Math.round(Math.max(30 * P().costMul, grossOf(r.t) * 6));
+    T.stab = Math.min(100, T.stab + 10);
+    addRel(r.t, r.by, 15);
+  } else if (r.k === 'freeTrade') {
+    un.act.freeTrade = S.turn + 60;
+    yes.forEach(x => addTmp(x, 'income', 0.05, 60, 'ft'));
+  }
+}
+function unVote(nid, v) {
+  const un = F3().un;
+  if (!un.cur) return 'Сейчас голосования нет';
+  if (!['y', 'n', 'a'].includes(v)) return '?';
+  un.cur.votes[nid] = v;
+  S.pending = S.pending.filter(x => !(x.to === nid && x.type === 'unVote'));
+  return { y: 'Вы проголосовали «за»', n: unVetoes().includes(nid) ? 'Вы проголосовали «против» (право вето!)' : 'Вы проголосовали «против»', a: 'Вы воздержались' }[v];
+}
+
+// ================================================================= ИИ и новая дипломатия
+function aiDiplo3() {
+  const alive = Object.values(S.nations).filter(x => x.alive);
+  alive.forEach(n => {
+    if (!n.ai || vassalOf(n.id)) return;
+    const r = Math.random();
+    // великие державы гарантируют дружественные малые страны
+    if (n.major && r < 0.01 && guaranteesBy(n.id).length < 3) {
+      const t = alive.find(x => x.minor && !vassalOf(x.id) && rel(n.id, x.id) > 45 && !atWar(n.id, x.id) && !F3().guar[n.id + '>' + x.id]);
+      if (t) diplomacy2(n.id, t.id, 'guarantee');
+    }
+    // научные пакты
+    if (r > 0.99) {
+      const t = alive.find(x => x.id !== n.id && !x.minor && rel(n.id, x.id) > 35 && !F3().sci[pk(n.id, x.id)] && !atWar(n.id, x.id));
+      if (t) {
+        if (isHuman(t.id)) { if (!S.pending.some(x => x.to === t.id && x.from === n.id)) notify(t.id, { type: 'sci', from: n.id }); }
+        else if (sciPacts(n.id) < 4 && aiAccepts2(t.id, n.id, 'sci')) { F3().sci[pk(n.id, t.id)] = 1; permMod(n.id, 'research', 0.08); permMod(t.id, 'research', 0.08); }
+      }
+    }
+    // ультиматум игроку-соседу
+    if (n.major && n.aggr > 0.3 && r > 0.004 && r < 0.008 && !atWarAny(n.id)) {
+      const t = neighboursOf(n.id).find(x => isHuman(x) && !allied(n.id, x) && !atWar(n.id, x) && S.turn >= (S.flags.truce || 0) && powerOfSide(n.id) > sideWithGuards(x) * 3);
+      if (t) { const ps = demandTargets(n.id, t); if (ps.length && !S.pending.some(x => x.to === t && x.type === 'demand')) notify(t, { type: 'demand', from: n.id, p: ps[0] }); }
+    }
+    // военный доступ игроку, воюющему против общего врага
+    if (r > 0.5 && r < 0.503) {
+      const t = alive.find(x => isHuman(x.id) && !allied(n.id, x.id) && !S.access[n.id + '>' + x.id] && enemiesOf(n.id).some(e => atWar(x.id, e)) && rel(n.id, x.id) > 0);
+      if (t && !S.pending.some(x => x.to === t.id && x.from === n.id && x.type === 'access')) notify(t.id, { type: 'access', from: n.id });
+    }
+  });
+  // эмбарго сильнее торговли
+  for (const k of Object.keys(S.trade)) { const [a, b] = k.split('|'); if (embargoed(a, b)) delete S.trade[k]; }
+}
+function vassalTick() {
+  const f = F3();
+  for (const sub of Object.keys(f.vas)) {
+    const over = f.vas[sub], S1 = S.nations[sub], O = S.nations[over];
+    if (!S1 || !O || !S1.alive || !O.alive) { delete f.vas[sub]; continue; }
+    const amt = Math.max(0, (S1.last.gross || 0) * 0.15);
+    if (S1.gold > 0) { S1.gold -= amt; O.gold += amt; }
+    S.ally[pk(sub, over)] = 1;
+    if (S1.ai) enemiesOf(over).forEach(e => { if (!atWar(sub, e) && !allied(sub, e) && e !== sub) joinWar(sub, e, over); });
+    // борьба за независимость
+    if (S1.ai && rel(sub, over) < -30 && nationPower(sub) > nationPower(over) * 0.6 && Math.random() < 0.05) {
+      delete f.vas[sub]; delete S.ally[pk(sub, over)];
+      log(`✊ ${S1.name} выходит из подчинения ${O.name}!`, 'big', null);
+      if (isHuman(over)) notify(over, { type: 'vassalLost', from: sub });
+    }
+  }
+}
+
+// ================================================================= статистика партии
+function histTick() {
+  const h = F3().hist;
+  h.t.push(S.turn);
+  const ids = Object.values(S.nations).filter(n => n.alive && (n.major || !n.ai)).map(n => n.id);
+  ids.forEach(id => { if (!h.d[id]) h.d[id] = new Array(h.t.length - 1).fill(null); });
+  for (const id in h.d) {
+    const n = S.nations[id];
+    h.d[id].push(n && n.alive ? [score(id), Math.round(n.last.gross || 0), Math.round(nationPower(id)), provsOf(id).length] : null);
+  }
+  if (h.t.length > 160) {
+    const keep = (x, i) => i % 2 === 0 || i === h.t.length - 1;
+    h.t = h.t.filter(keep);
+    for (const id in h.d) h.d[id] = h.d[id].filter(keep);
+  }
+}
+function statTick() {
+  // бои этого хода
+  (S.fx || []).forEach(x => {
+    if (x.k !== 'battle' || x.t !== S.turn) return;
+    const win = x.won ? x.att : x.def, lose = x.won ? x.def : x.att;
+    if (isHuman(win)) { st(win).won++; if (S.nations[win] && S.nations[lose] && S.nations[win].minor && S.nations[lose].major) st(win).david = 1; }
+    if (isHuman(lose)) st(lose).lost++;
+  });
+  humans().forEach(h => {
+    const s = st(h), n = nat(h);
+    if (s.g0 === undefined) { s.g0 = n.last.gross || 0; s.p0 = n.startProvs || provsOf(h).length; s.t0 = Object.values(n.tech).reduce((a, b) => a + b, 0); s.turn0 = S.turn; }
+    s.peaceT = atWarAny(h) ? 0 : (s.peaceT || 0) + 1;
+    s.minStab = Math.min(s.minStab, n.stab);
+    s.lowSurv = n.stab < 10 ? (s.lowSurv || 0) + 1 : s.lowSurv || 0;
+    s.turns = (s.turns || 0) + 1;
+  });
+}
+
+// ================================================================= ход
+function features3Pre() {
+  const f = F3();
+  // истёкшие временные модификаторы
+  dropTmp(t => t.u <= S.turn);
+  for (const m of [f.cb, f.emb]) for (const k of Object.keys(m)) if (m[k] <= S.turn) delete m[k];
+  for (const k of Object.keys(f.un.sanc)) if (f.un.sanc[k] <= S.turn) delete f.un.sanc[k];
+  // события: каждому игроку раз в 5–9 ходов
+  humans().forEach(h => {
+    const n = nat(h);
+    if (n.evNext === undefined) n.evNext = S.turn + 3 + Math.floor(Math.random() * 3);
+    if (S.turn >= n.evNext && !S.pending.some(x => x.to === h && x.type === 'event')) { fireEvent(h); n.evNext = S.turn + 5 + Math.floor(Math.random() * 5); }
+  });
+  aiDiplo3();
+  unTick();
+}
+function features3Post() {
+  vassalTick();
+  statTick();
+  histTick();
+}
+
+// ================================================================= команды
+Object.assign(CMD, {
+  dip2(nid, { to, act, arg }) {
+    if (!DIP2[act]) return E('Нет такого действия');
+    const r = diplomacy2(nid, to, act, arg);
+    return R(r, /отправлен|Подарок|предоставляет|получает военный|отозван|гарантировали|сняты|снято|Эмбарго на|Осуждение|Научный пакт с|расторгнут|принимает ультиматум|становится вашим|снова независима/.test(r) ? 'good' : 'bad');
+  },
+  evPick(nid, { id, opt }) { const r = evPick(nid, +id, +opt); return R(r, ''); },
+  unVote(nid, { v }) { const r = unVote(nid, v); return R(r, /^Вы/.test(r) ? 'good' : 'bad'); },
+  unPropose(nid, { k, t, t2 }) {
+    const err = unPropose(nid, k, t, t2);
+    return err ? E(err) : R(`Резолюция внесена (💰${fmt(unCost())}). Голосование — на ближайшей сессии ${unName()}.`);
+  },
+});
+
+// ИИ учитывает гарантов: нападать на страну под защитой опаснее
+if (typeof AI !== 'undefined') {
+  const side0 = AI.side;
+  AI.side = function (nid) { return side0.call(this, nid) + guarantorsOf(nid).reduce((s, g) => s + this.pw(g) * 0.6, 0); };
 }
 
 </script>
@@ -7591,6 +8492,699 @@ Object.assign(UI, {
 
 </script>
 <script>
+/* Звук и музыка: всё синтезируется в браузере (Web Audio), без аудиофайлов.
+   Музыка — генеративная: у каждой эпохи свой лад, темп, тембры и ритм; мелодия каждый раз новая. */
+'use strict';
+
+const THEMES = {
+  menu: { bpm: 64, root: 50, scale: [0, 2, 3, 5, 7, 8, 10], prog: [0, 5, 3, 4], pad: 'sawtooth', padCut: 900, lead: 'triangle', drums: 'timp', mel: 0.3, arp: null },
+  1914: { bpm: 84, root: 48, scale: [0, 2, 3, 5, 7, 8, 11], prog: [0, 3, 4, 0], pad: 'sawtooth', padCut: 1100, lead: 'square', leadCut: 1600, drums: 'march', mel: 0.4, arp: null },
+  1939: { bpm: 70, root: 45, scale: [0, 2, 3, 5, 7, 8, 10], prog: [0, 5, 2, 4], pad: 'sawtooth', padCut: 700, lead: 'sawtooth', leadCut: 1200, drums: 'timp', mel: 0.32, arp: null },
+  1962: { bpm: 90, root: 50, scale: [0, 2, 3, 5, 7, 9, 10], prog: [0, 3, 6, 4], pad: 'triangle', padCut: 2000, lead: 'sine', vib: 1, drums: 'pulse', mel: 0.35, arp: 'square' },
+  2025: { bpm: 100, root: 52, scale: [0, 2, 3, 5, 7, 8, 10], prog: [0, 5, 2, 6], pad: 'sine', padCut: 3000, lead: 'triangle', drums: 'beat', mel: 0.3, arp: 'triangle' },
+};
+
+const Sound = {
+  ctx: null, master: null, mus: null, sfx: null, noise: null,
+  cfg: { music: 0.45, sfx: 0.7, mute: false },
+  theme: null, want: 'menu', timer: null, step: 0, next: 0, last: 0, cycle: 0,
+
+  init() {
+    try { Object.assign(this.cfg, JSON.parse(localStorage.getItem('md_audio') || '{}')); } catch (e) { /* нет хранилища */ }
+    const unlock = () => { this.start(); };
+    document.addEventListener('pointerdown', unlock, true);
+    document.addEventListener('keydown', unlock, true);
+    document.addEventListener('visibilitychange', () => {
+      if (!this.ctx) return;
+      if (document.hidden) this.ctx.suspend().catch(() => {}); else if (!this.cfg.mute) this.ctx.resume().catch(() => {});
+    });
+  },
+  save() { try { localStorage.setItem('md_audio', JSON.stringify(this.cfg)); } catch (e) { /* нет хранилища */ } },
+  start() {
+    if (this.ctx) { if (this.ctx.state === 'suspended' && !document.hidden && !this.cfg.mute) this.ctx.resume().catch(() => {}); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const c = this.ctx = new AC();
+    this.master = c.createGain();
+    this.master.connect(c.destination);
+    this.mus = c.createGain();
+    this.sfx = c.createGain();
+    // немного «зала» для музыки: задержка с обратной связью
+    const dl = c.createDelay(1), fb = c.createGain(), wet = c.createGain(), lp = c.createBiquadFilter();
+    dl.delayTime.value = 0.31; fb.gain.value = 0.28; wet.gain.value = 0.22; lp.type = 'lowpass'; lp.frequency.value = 2200;
+    this.mus.connect(this.master);
+    this.mus.connect(dl); dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(wet); wet.connect(this.master);
+    this.sfx.connect(this.master);
+    const len = c.sampleRate;
+    this.noise = c.createBuffer(1, len, c.sampleRate);
+    const d = this.noise.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.apply();
+    this.setTheme(this.want);
+  },
+  apply() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.master.gain.setTargetAtTime(this.cfg.mute ? 0 : 1, t, 0.05);
+    this.mus.gain.setTargetAtTime(this.cfg.music * 0.55, t, 0.3);
+    this.sfx.gain.setTargetAtTime(this.cfg.sfx, t, 0.05);
+    if (this.cfg.mute) this.ctx.suspend().catch(() => {}); else if (!document.hidden) this.ctx.resume().catch(() => {});
+  },
+  set(k, v) { this.cfg[k] = v; this.save(); this.apply(); },
+
+  // ------------------------------------------------------------ синтез
+  tone(f, t, dur, o = {}) {
+    const c = this.ctx;
+    const osc = c.createOscillator(), g = c.createGain();
+    osc.type = o.type || 'sine';
+    osc.frequency.setValueAtTime(f, t);
+    if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + dur);
+    if (o.detune) osc.detune.value = o.detune;
+    let node = osc;
+    if (o.cut) { const fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = o.cut; fl.Q.value = o.q || 0.7; node.connect(fl); node = fl; }
+    if (o.vib) { const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 5.2; lg.gain.value = f * 0.006; lfo.connect(lg); lg.connect(osc.frequency); lfo.start(t); lfo.stop(t + dur + (o.rel || 0.2) + 0.05); }
+    const a = o.att || 0.01, r = o.rel || 0.15, peak = o.gain || 0.1;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(peak, t + a);
+    g.gain.setValueAtTime(peak, t + Math.max(a, dur - 0.01));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + r);
+    node.connect(g);
+    g.connect(o.bus || this.sfx);
+    osc.start(t);
+    osc.stop(t + dur + r + 0.05);
+  },
+  hit(t, dur, o = {}) {
+    const c = this.ctx;
+    const src = c.createBufferSource(), g = c.createGain(), fl = c.createBiquadFilter();
+    src.buffer = this.noise;
+    fl.type = o.hp ? 'highpass' : o.bp ? 'bandpass' : 'lowpass';
+    fl.frequency.setValueAtTime(o.cut || 1000, t);
+    if (o.cutTo) fl.frequency.exponentialRampToValueAtTime(o.cutTo, t + dur);
+    g.gain.setValueAtTime(o.gain || 0.2, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(fl); fl.connect(g); g.connect(o.bus || this.sfx);
+    src.start(t, Math.random() * 0.5);
+    src.stop(t + dur + 0.05);
+  },
+  midi: m => 440 * Math.pow(2, (m - 69) / 12),
+
+  // ------------------------------------------------------------ эффекты
+  play(name) {
+    if (!this.ctx || this.cfg.mute || this.cfg.sfx <= 0 || this.ctx.state !== 'running') return;
+    const t = this.ctx.currentTime + 0.01, T = this.tone.bind(this), H = this.hit.bind(this);
+    switch (name) {
+      case 'click': T(1100, t, 0.025, { type: 'sine', gain: 0.05, rel: 0.03 }); break;
+      case 'turn': T(523, t, 0.05, { gain: 0.09, rel: 0.9 }); T(784, t + 0.08, 0.05, { gain: 0.07, rel: 0.9 }); T(1046, t + 0.16, 0.05, { gain: 0.05, rel: 1.1 }); break;
+      case 'battle': H(t, 0.45, { cut: 900, cutTo: 200, gain: 0.35 }); T(90, t, 0.25, { to: 40, gain: 0.3, rel: 0.2 }); H(t + 0.18, 0.3, { cut: 1500, cutTo: 300, gain: 0.15 }); break;
+      case 'nuke': H(t, 3.2, { cut: 2500, cutTo: 60, gain: 0.5 }); T(55, t, 2.6, { to: 28, gain: 0.45, att: 0.05, rel: 1 }); break;
+      case 'build': T(660, t, 0.06, { type: 'triangle', gain: 0.08, rel: 0.25 }); T(990, t + 0.09, 0.08, { type: 'triangle', gain: 0.08, rel: 0.35 }); break;
+      case 'war': T(110, t, 1.1, { type: 'sawtooth', cut: 700, gain: 0.14, att: 0.08, rel: 0.4, to: 98 }); T(165, t, 1.1, { type: 'sawtooth', cut: 600, gain: 0.08, att: 0.1, rel: 0.4, to: 147 }); H(t, 0.6, { cut: 300, gain: 0.25 }); break;
+      case 'event': [523, 659, 784].forEach((f, i) => T(f, t + i * 0.09, 0.07, { type: 'triangle', gain: 0.08, rel: 0.4 })); break;
+      case 'un': [392, 523, 659, 523].forEach((f, i) => T(f, t + i * 0.12, 0.1, { type: 'sine', gain: 0.08, rel: 0.5 })); break;
+      case 'good': [523, 659, 784].forEach(f => T(f, t, 0.3, { type: 'sine', gain: 0.05, att: 0.03, rel: 0.6 })); break;
+      case 'bad': T(330, t, 0.15, { type: 'triangle', gain: 0.08, rel: 0.2 }); T(247, t + 0.17, 0.25, { type: 'triangle', gain: 0.08, rel: 0.4 }); break;
+      case 'error': T(150, t, 0.11, { type: 'square', cut: 900, gain: 0.06, rel: 0.05 }); break;
+      case 'ach': [523, 659, 784, 1046].forEach((f, i) => T(f, t + i * 0.08, 0.1, { type: 'triangle', gain: 0.09, rel: 0.5 })); [1568, 2093].forEach((f, i) => T(f, t + 0.4 + i * 0.06, 0.05, { gain: 0.04, rel: 0.6 })); break;
+      case 'victory': [392, 523, 659, 784, 659, 784, 1046].forEach((f, i) => T(f, t + i * 0.16, 0.14, { type: 'sawtooth', cut: 2200, gain: 0.07, rel: 0.3 })); break;
+    }
+  },
+
+  // ------------------------------------------------------------ музыка
+  setTheme(name) {
+    this.want = name;
+    if (!this.ctx || this.theme === name) return;
+    this.theme = name;
+    this.step = 0; this.cycle = 0;
+    this.next = this.ctx.currentTime + 0.3;
+    this.last = 0;
+    if (!this.timer) this.timer = setInterval(() => this.tick(), 90);
+  },
+  tick() {
+    if (!this.ctx || this.ctx.state !== 'running' || this.cfg.music <= 0) { if (this.ctx) this.next = Math.max(this.next, this.ctx.currentTime + 0.1); return; }
+    const th = THEMES[this.theme] || THEMES.menu;
+    const sp = 60 / th.bpm / 2; // восьмая
+    while (this.next < this.ctx.currentTime + 0.35) { this.note(th, this.step, this.next, sp); this.next += sp; this.step++; }
+  },
+  deg(th, d, oct = 0) {
+    const n = th.scale.length;
+    const o = Math.floor(d / n), i = ((d % n) + n) % n;
+    return th.root + th.scale[i] + 12 * (o + oct);
+  },
+  note(th, step, t, sp) {
+    const bus = this.mus, bar = Math.floor(step / 8), s = step % 8;
+    if (bar && bar % 4 === 0 && s === 0) this.cycle++;
+    const ch = th.prog[bar % th.prog.length];
+    const T = (f, d, o) => this.tone(f, t, d, Object.assign({ bus }, o));
+    // аккорд и бас
+    if (s === 0) {
+      [0, 2, 4].forEach((k, i) => T(this.midi(this.deg(th, ch + k, 0)), sp * 8 - 0.2, { type: th.pad, cut: th.padCut, gain: 0.035, att: 0.7, rel: 1.2, detune: (i - 1) * 6 }));
+      T(this.midi(this.deg(th, ch, -1)), sp * 3.5, { type: 'triangle', gain: 0.09, att: 0.04, rel: 0.4 });
+    }
+    if (s === 4) T(this.midi(this.deg(th, ch + (Math.random() < 0.5 ? 4 : 0), -1)), sp * 3.5, { type: 'triangle', gain: 0.07, att: 0.04, rel: 0.4 });
+    // арпеджио
+    if (th.arp && this.cycle % 2 === 1) T(this.midi(this.deg(th, ch + [0, 2, 4, 7][s % 4], 1)), sp * 0.6, { type: th.arp, cut: 2500, gain: 0.018, rel: 0.12 });
+    // мелодия: случайное блуждание по ладу вокруг аккорда, через цикл — пауза
+    if (this.cycle % 3 !== 2 && Math.random() < th.mel * (s % 2 ? 0.6 : 1)) {
+      const tones = [ch, ch + 2, ch + 4, ch + 7];
+      let d = Math.random() < 0.55 ? tones[Math.floor(Math.random() * tones.length)] : this.last + Math.round(rnd(-2, 2));
+      if (Math.abs(d - this.last) > 5) d = this.last + Math.sign(d - this.last) * 2;
+      d = clamp(d, ch - 3, ch + 9);
+      this.last = d;
+      T(this.midi(this.deg(th, d, 1)), sp * (Math.random() < 0.3 ? 2 : 1) * 0.9, { type: th.lead, cut: th.leadCut, vib: th.vib, gain: 0.045, att: 0.03, rel: 0.35 });
+    }
+    // ударные
+    const H = (d, o) => this.hit(t, d, Object.assign({ bus }, o));
+    if (th.drums === 'march') {
+      if (s === 0 || s === 4) this.tone(70, t, 0.12, { bus, to: 45, gain: 0.12, rel: 0.1 });
+      if (s === 2 || s === 6) H(0.12, { bp: 1, cut: 1800, gain: 0.07 });
+      if (bar % 4 === 3 && s >= 6) { H(0.06, { bp: 1, cut: 2000, gain: 0.05 }); this.hit(t + sp / 2, 0.06, { bus, bp: 1, cut: 2000, gain: 0.05 }); }
+    } else if (th.drums === 'timp') {
+      if (s === 0 && bar % 2 === 0) this.tone(this.midi(this.deg(th, ch, -2)), t, 0.5, { bus, gain: 0.12, rel: 0.6, to: this.midi(this.deg(th, ch, -2)) * 0.97 });
+    } else if (th.drums === 'pulse') {
+      H(0.04, { hp: 1, cut: 7000, gain: s % 2 ? 0.015 : 0.025 });
+      if (s === 0) this.tone(60, t, 0.15, { bus, to: 40, gain: 0.1, rel: 0.1 });
+    } else if (th.drums === 'beat') {
+      if (s === 0 || s === 4 || (s === 7 && bar % 2)) this.tone(80, t, 0.14, { bus, to: 42, gain: 0.16, rel: 0.12 });
+      if (s % 2 === 1) H(0.035, { hp: 1, cut: 8000, gain: 0.03 });
+      if (s === 4) H(0.15, { bp: 1, cut: 1500, gain: 0.04 });
+    }
+  },
+};
+Sound.init();
+
+</script>
+<script>
+/* v6, интерфейс: Мировой совет, расширенная дипломатия, события с выбором, достижения, графики партии, звук. */
+'use strict';
+
+// ================================================================= достижения
+const ACH = [
+  { id: 'first', i: '👣', n: 'Первый шаг', d: 'Сделайте первый ход.', c: c => c.s.turns >= 1 },
+  { id: 'year', i: '📅', n: 'Год у власти', d: 'Правьте 12 ходов в одной партии.', c: c => c.s.turns >= 12 },
+  { id: 'decade', i: '🗓', n: 'Десятилетие', d: 'Правьте 120 ходов в одной партии.', c: c => c.s.turns >= 120 },
+  { id: 'win1', i: '⚔', n: 'Первая победа', d: 'Выиграйте сражение.', c: c => c.s.won >= 1 },
+  { id: 'win10', i: '🎖', n: 'Полководец', d: 'Выиграйте 10 сражений.', c: c => c.s.won >= 10 },
+  { id: 'win50', i: '🏅', n: 'Бог войны', d: 'Выиграйте 50 сражений.', c: c => c.s.won >= 50 },
+  { id: 'david', i: '🪨', n: 'Давид и Голиаф', d: 'Малой страной разбейте армию великой державы.', c: c => c.s.david },
+  { id: 'capt1', i: '🚩', n: 'Завоеватель', d: 'Захватите вражескую провинцию.', c: c => c.s.capt >= 1 },
+  { id: 'capt25', i: '🗺', n: 'Империя', d: 'Захватите 25 провинций.', c: c => c.s.capt >= 25 },
+  { id: 'capital', i: '🏛', n: 'Взятие столицы', d: 'Захватите столицу другой страны.', c: c => Object.values(S.nations).some(x => x.id !== c.me && x.origCapital !== undefined && S.prov[x.origCapital] && S.prov[x.origCapital].o === c.me && S.prov[x.origCapital].core !== c.me) },
+  { id: 'annex', i: '💀', n: 'Конец государства', d: 'Уничтожьте другое государство.', c: c => c.s.annex >= 1 },
+  { id: 'double', i: '📐', n: 'Расширение', d: 'Удвойте число своих провинций.', c: c => c.s.p0 && c.provs >= c.s.p0 * 2 },
+  { id: 'dom10', i: '🌍', n: 'Региональная держава', d: 'Контролируйте 10% населения мира.', c: c => c.share >= 0.1 },
+  { id: 'dom25', i: '🌐', n: 'Сверхдержава', d: 'Контролируйте 25% населения мира.', c: c => c.share >= 0.25 },
+  { id: 'dom40', i: '👑', n: 'Мировое господство', d: 'Контролируйте 40% населения мира.', c: c => c.share >= 0.4 },
+  { id: 'rich', i: '💰', n: 'Золотой запас', d: 'Накопите в казне сумму, равную 40 месячным доходам.', c: c => c.n.gold >= Math.max(200, (c.n.last.gross || 0) * 40) && c.s.turns >= 6 },
+  { id: 'miracle', i: '📈', n: 'Экономическое чудо', d: 'Удвойте доход с начала партии.', c: c => c.s.g0 > 0 && (c.n.last.gross || 0) >= c.s.g0 * 2 },
+  { id: 'sci10', i: '🔬', n: 'Учёный', d: 'Изучите 10 технологий за партию.', c: c => c.s.t0 !== undefined && c.tech - c.s.t0 >= 10 },
+  { id: 'scimax', i: '🧬', n: 'На пике науки', d: 'Изучите ветку науки до конца.', c: c => Object.values(c.n.tech).some(v => v >= TECH_MAX) && c.s.t0 !== undefined },
+  { id: 'love', i: '❤', n: 'Народная любовь', d: 'Поднимите стабильность до 90%.', c: c => c.n.stab >= 90 },
+  { id: 'brink', i: '🔥', n: 'На краю пропасти', d: 'Продержитесь 6 ходов со стабильностью ниже 10%.', c: c => (c.s.lowSurv || 0) >= 6 },
+  { id: 'allies5', i: '🤝', n: 'Великий альянс', d: 'Имейте 5 союзников одновременно.', c: c => alliesOf(c.me).length >= 5 },
+  { id: 'trade8', i: '📦', n: 'Торговая империя', d: 'Заключите 8 торговых договоров.', c: c => tradesOf(c.me) >= 8 },
+  { id: 'peace', i: '🕊', n: 'Миротворец', d: 'Заключите мир.', c: c => c.s.peace >= 1 },
+  { id: 'survive', i: '🛡', n: 'Выстоять', d: 'Заключите мир с врагом, который вдвое сильнее вас.', c: c => c.s.survive },
+  { id: 'pacifist', i: '☮', n: 'Пацифист', d: '120 ходов подряд без войн.', c: c => c.s.peaceT >= 120 },
+  { id: 'nuke', i: '☢', n: 'Ядерный клуб', d: 'Получите ядерную боеголовку.', c: c => c.n.nukes > 0 },
+  { id: 'doom', i: '💥', n: 'Судный день', d: 'Нанесите ядерный удар.', c: c => c.s.nukes >= 1 },
+  { id: 'un', i: '🗳', n: 'Голос мира', d: 'Проведите свою резолюцию в Мировом совете.', c: c => c.s.unPass >= 1 },
+  { id: 'veto', i: '✋', n: 'Право вето', d: 'Заблокируйте резолюцию своим вето.', c: c => c.s.veto >= 1 },
+  { id: 'vassal', i: '👑', n: 'Покровитель', d: 'Получите сателлита.', c: c => vassalsOf(c.me).length >= 1 },
+  { id: 'guard', i: '🛡', n: 'Гарант', d: 'Гарантируйте независимость трёх стран.', c: c => guaranteesBy(c.me).length >= 3 },
+  { id: 'spy5', i: '🕵', n: 'Рыцарь плаща и кинжала', d: 'Создайте агентурную сеть 5-го уровня.', c: c => Object.values(c.n.spy || {}).some(v => v >= 5) },
+  { id: 'marshal', i: '⭐', n: 'Маршал', d: 'Командир получает высшее звание.', c: c => Object.values(S.cmdrs || {}).some(x => x.o === c.me && x.lvl >= 5) },
+  { id: 'course', i: '🎯', n: 'Великий курс', d: 'Выполните 5 программ национального курса.', c: c => (c.n.done || []).length >= 5 },
+  { id: 'wise', i: '📜', n: 'Мудрый правитель', d: 'Примите 10 решений в событиях.', c: c => c.s.ev >= 10 },
+  { id: 'navy', i: '⚓', n: 'Владычица морей', d: 'Соберите флот из 60 кораблей.', c: c => Object.values(S.fleets).filter(f => f.o === c.me).reduce((s, f) => s + Object.values(f.s).reduce((a, b) => a + b, 0), 0) >= 60 },
+  { id: 'million', i: '🪖', n: 'Миллионная армия', d: 'Соберите армию в миллион солдат.', c: c => Object.values(S.armies).filter(a => a.o === c.me).reduce((s, a) => { for (const k in a.u) if (UNITS[k] && UNITS[k].cat === 'inf') s += a.u[k]; return s; }, 0) >= 1e6 },
+  { id: 'online', i: '🌐', n: 'Вместе веселее', d: 'Сыграйте 5 ходов в сетевой партии.', c: c => S.online && c.s.turns >= 5 },
+  { id: 'e1914', i: '🎩', n: 'Великая война', d: 'Сыграйте 12 ходов в эпохе 1914 года.', c: c => S.period == 1914 && c.s.turns >= 12 },
+  { id: 'e1939', i: '✈', n: 'Мировой пожар', d: 'Сыграйте 12 ходов в эпохе 1939 года.', c: c => S.period == 1939 && c.s.turns >= 12 },
+  { id: 'e1962', i: '🚀', n: 'Холодная война', d: 'Сыграйте 12 ходов в эпохе 1962 года.', c: c => S.period == 1962 && c.s.turns >= 12 },
+  { id: 'e2025', i: '🛰', n: 'Современный мир', d: 'Сыграйте 12 ходов в эпохе 2025 года.', c: c => S.period == 2025 && c.s.turns >= 12 },
+  { id: 'historian', i: '📚', n: 'Историк', d: 'Получите достижения всех четырёх эпох.', c: (c, got) => ['e1914', 'e1939', 'e1962', 'e2025'].every(x => got[x]) },
+  { id: 'top1', i: '🏆', n: 'Сверхдержава эпохи', d: 'Станьте первым в рейтинге к концу эпохи.', c: c => S.flags.timeup && Object.values(S.nations).filter(x => x.alive).sort((a, b) => score(b.id) - score(a.id))[0].id === c.me },
+  { id: 'all', i: '💎', n: 'Легенда', d: 'Получите 35 достижений.', c: (c, got) => Object.keys(got).length >= 35 },
+];
+
+const Ach = {
+  got: {},
+  key() { return 'md_ach' + (typeof Auth !== 'undefined' && Auth.user ? '_' + Auth.user.uid : ''); },
+  load() {
+    try { this.got = JSON.parse(localStorage.getItem(this.key()) || '{}') || {}; } catch (e) { this.got = {}; }
+    this.loadedKey = this.key();
+  },
+  save() { try { localStorage.setItem(this.key(), JSON.stringify(this.got)); } catch (e) { /* нет хранилища */ } this.push(); },
+  // облако: users/{uid}/meta/ach
+  async push() {
+    if (typeof Auth === 'undefined' || !Auth.user || !Auth.cloudSaves()) return;
+    clearTimeout(this._t);
+    this._t = setTimeout(async () => {
+      try {
+        await fetch(Auth.fsUrl('meta/ach'), { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await Auth.token() }, body: JSON.stringify({ fields: { got: { stringValue: JSON.stringify(this.got) } } }) });
+      } catch (e) { /* без облака — только на устройстве */ }
+    }, 1500);
+  },
+  async pull() {
+    if (typeof Auth === 'undefined' || !Auth.user || !Auth.cloudSaves()) return;
+    try {
+      const r = await fetch(Auth.fsUrl('meta/ach'), { headers: { Authorization: 'Bearer ' + await Auth.token() } });
+      if (!r.ok) return;
+      const j = await r.json();
+      const cloud = JSON.parse((j.fields && j.fields.got && j.fields.got.stringValue) || '{}');
+      let add = 0;
+      for (const k in cloud) if (!this.got[k]) { this.got[k] = cloud[k]; add++; }
+      if (add) { try { localStorage.setItem(this.key(), JSON.stringify(this.got)); } catch (e) { /* */ } }
+      if (Object.keys(this.got).length > Object.keys(cloud).length) this.push();
+    } catch (e) { /* нет сети */ }
+  },
+  check() {
+    if (!S || !S.player || !S.nations[S.player] || !S.f3) return;
+    if (this.loadedKey !== this.key()) { this.load(); this.pull(); }
+    const me = S.player, n = nat(me), s = S.f3.stat[me];
+    if (!s || !n.alive) return;
+    const c = { me, n, s, provs: provsOf(me).length, share: worldPopShare(me), tech: Object.values(n.tech).reduce((a, b) => a + b, 0) };
+    const fresh = [];
+    for (let pass = 0; pass < 2; pass++) {
+      ACH.forEach(a => {
+        if (this.got[a.id]) return;
+        let ok = false;
+        try { ok = !!a.c(c, this.got); } catch (e) { ok = false; }
+        if (ok) { this.got[a.id] = Date.now(); fresh.push(a); }
+      });
+    }
+    if (!fresh.length) return;
+    this.save();
+    fresh.forEach((a, i) => setTimeout(() => this.popup(a), i * 1600));
+  },
+  popup(a) {
+    Sound.play('ach');
+    const el = document.createElement('div');
+    el.className = 'ach-pop';
+    el.innerHTML = `<span class="ach-ic">${a.i}</span><div><small>Достижение получено</small><b>${esc(a.n)}</b><span>${esc(a.d)}</span></div>`;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('on'));
+    setTimeout(() => { el.classList.remove('on'); setTimeout(() => el.remove(), 500); }, 5200);
+  },
+  html() {
+    if (this.loadedKey !== this.key()) this.load();
+    const n = Object.keys(this.got).length;
+    return `<div class="row sp" style="margin-bottom:8px"><span>Получено <b class="goldc">${n}</b> из ${ACH.length}${typeof Auth !== 'undefined' && Auth.user && Auth.cloudSaves() ? ' · ☁ хранятся в аккаунте' : typeof Auth !== 'undefined' && !Auth.user ? ' · <span class="muted">войдите в аккаунт, чтобы они хранились на всех устройствах</span>' : ''}</span></div>
+      <div class="bar" style="margin-bottom:10px"><i style="width:${n / ACH.length * 100}%"></i></div>
+      <div class="ach-grid">${ACH.map(a => { const g = this.got[a.id]; return `<div class="ach ${g ? 'got' : ''}"><span class="ach-ic">${g ? a.i : '🔒'}</span><div><b>${esc(a.n)}</b><small>${esc(a.d)}</small>${g ? `<small class="goldc">${new Date(g).toLocaleDateString('ru-RU')}</small>` : ''}</div></div>`; }).join('')}</div>`;
+  },
+};
+Ach.load();
+
+// ================================================================= графики партии
+const STAT_METRICS = [['score', 'Очки', 0], ['gross', 'Доход', 1], ['power', 'Военная мощь', 2], ['provs', 'Провинции', 3]];
+const Stats = {
+  metric: 0, hover: -1,
+  dateOf(t) { const P0 = PERIODS[S.period], m = P0.month + t; return MONTHS[((m % 12) + 12) % 12].slice(0, 3) + ' ' + (P0.year + Math.floor(m / 12)); },
+  series() {
+    const h = S.f3 && S.f3.hist;
+    if (!h || !h.t.length) return null;
+    const last = id => { const a = h.d[id]; for (let i = a.length - 1; i >= 0; i--) if (a[i]) return a[i][0]; return 0; };
+    let ids = Object.keys(h.d).filter(id => S.nations[id]);
+    const me = S.player;
+    const top = ids.filter(id => id !== me && S.nations[id].alive).sort((a, b) => last(b) - last(a)).slice(0, 6);
+    const hum = ids.filter(id => id !== me && !S.nations[id].ai);
+    ids = [me].concat([...new Set(top.concat(hum))]).filter(id => h.d[id]);
+    return { t: h.t, lines: ids.map(id => ({ id, me: id === me, v: h.d[id].map(x => (x ? x[STAT_METRICS[this.metric][2]] : null)) })) };
+  },
+  html() {
+    const sr = this.series();
+    if (!sr || sr.t.length < 2) return '<p class="muted">Графики появятся после пары ходов.</p>';
+    const b = STAT_METRICS.map(([k, t], i) => `<button class="btn sm ${this.metric === i ? '' : 'ghost'}" data-act="stMetric" data-id="${i}">${t}</button>`).join('');
+    return `<div class="row" style="margin-bottom:8px;flex-wrap:wrap">${b}</div><div class="chart-wrap"><canvas id="statCanvas"></canvas></div>
+      <div class="chart-legend">${sr.lines.map(l => `<span>${l.me ? '<span class="swatch" style="background:var(--gold)"></span>' : sw(l.id)} ${l.me ? '<b>' : ''}${esc(nat(l.id).name)}${l.me ? '</b>' : ''}</span>`).join('')}</div>
+      <p class="muted" style="font-size:12px">Наведите курсор на график, чтобы увидеть значения. Показаны вы, шесть сильнейших держав и другие игроки.</p>`;
+  },
+  draw() {
+    const cv = $('#statCanvas');
+    const sr = this.series();
+    if (!cv || !sr) return;
+    const W = cv.parentElement.clientWidth, H = 300, dpr = window.devicePixelRatio || 1;
+    cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const L = 58, R = 12, T = 10, B = 26, n = sr.t.length;
+    let max = 0;
+    sr.lines.forEach(l => l.v.forEach(v => { if (v !== null && v > max) max = v; }));
+    max = max * 1.08 || 1;
+    const X = i => L + (W - L - R) * (i / Math.max(1, n - 1)), Y = v => T + (H - T - B) * (1 - v / max);
+    const css = getComputedStyle(document.documentElement);
+    const line = css.getPropertyValue('--line').trim() || '#2a3a55', muted = css.getPropertyValue('--muted').trim() || '#8f9db8';
+    g.font = '11px system-ui, sans-serif'; g.fillStyle = muted; g.strokeStyle = line; g.lineWidth = 1;
+    for (let k = 0; k <= 4; k++) {
+      const v = max * k / 4, y = Y(v);
+      g.beginPath(); g.moveTo(L, y); g.lineTo(W - R, y); g.stroke();
+      g.textAlign = 'right'; g.fillText(fmt(v), L - 6, y + 4);
+    }
+    g.textAlign = 'center';
+    const ticks = Math.min(6, n - 1);
+    for (let k = 0; k <= ticks; k++) { const i = Math.round((n - 1) * k / ticks); g.textAlign = k === ticks ? 'right' : k === 0 ? 'left' : 'center'; g.fillText(this.dateOf(sr.t[i]), k === 0 ? L : X(i), H - 8); }
+    // чужие линии тоньше, своя — поверх
+    sr.lines.slice().reverse().forEach(l => {
+      g.strokeStyle = l.me ? css.getPropertyValue('--gold').trim() || '#e3b54b' : nat(l.id).color;
+      g.lineWidth = l.me ? 3 : 1.6;
+      g.globalAlpha = l.me ? 1 : 0.85;
+      g.beginPath();
+      let on = false;
+      l.v.forEach((v, i) => { if (v === null) { on = false; return; } if (!on) { g.moveTo(X(i), Y(v)); on = true; } else g.lineTo(X(i), Y(v)); });
+      g.stroke();
+    });
+    g.globalAlpha = 1;
+    if (this.hover >= 0 && this.hover < n) {
+      const i = this.hover, x = X(i);
+      g.strokeStyle = muted; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(x, T); g.lineTo(x, H - B); g.stroke(); g.setLineDash([]);
+      const rows = sr.lines.filter(l => l.v[i] !== null).sort((a, b) => b.v[i] - a.v[i]);
+      const bw = 190, bh = 18 + rows.length * 16, bx = x + bw + 14 > W ? x - bw - 10 : x + 10, by = T + 4;
+      g.fillStyle = 'rgba(10,16,28,.92)'; g.fillRect(bx, by, bw, bh); g.strokeStyle = line; g.strokeRect(bx, by, bw, bh);
+      g.textAlign = 'left'; g.fillStyle = '#e6ebf5'; g.fillText(this.dateOf(sr.t[i]), bx + 8, by + 13);
+      rows.forEach((l, k) => {
+        g.fillStyle = l.me ? '#e3b54b' : nat(l.id).color; g.fillRect(bx + 8, by + 21 + k * 16, 8, 8);
+        g.fillStyle = '#e6ebf5'; g.fillText(nat(l.id).name.slice(0, 18), bx + 22, by + 29 + k * 16);
+        g.textAlign = 'right'; g.fillText(fmt(l.v[i]), bx + bw - 8, by + 29 + k * 16); g.textAlign = 'left';
+      });
+    }
+    cv.onmousemove = e => { const r = cv.getBoundingClientRect(); const i = Math.round((e.clientX - r.left - L) / (W - L - R) * (n - 1)); if (i !== this.hover) { this.hover = clamp(i, 0, n - 1); this.draw(); } };
+    cv.onmouseleave = () => { this.hover = -1; this.draw(); };
+  },
+};
+
+// ================================================================= окна и встраивание
+Object.assign(UI, {
+  unTab: 'now',
+  unForm: { k: 'sanctions', t: '' },
+  winUN() {
+    const un = F3().un, me = S.player, name = unName();
+    const tab = (k, t) => `<button class="${this.unTab === k ? 'on' : ''}" data-act="unTab" data-id="${k}">${t}</button>`;
+    const vetoes = unVetoes();
+    let body = '';
+    if (this.unTab === 'now') {
+      const r = un.cur;
+      const act = [];
+      Object.keys(un.sanc).forEach(x => { if (isSanctioned(x) && S.nations[x]) act.push(`⛓ Санкции против ${sw(x)} <b>${esc(nat(x).name)}</b> — до ${Stats.dateOf(un.sanc[x])}`); });
+      if ((un.act.nukeBan || 0) > S.turn) act.push(`☢ Запрет ядерного оружия — до ${Stats.dateOf(un.act.nukeBan)}`);
+      if ((un.act.freeTrade || 0) > S.turn) act.push(`📦 Свободная торговля — до ${Stats.dateOf(un.act.freeTrade)}`);
+      const myV = r && r.votes[me];
+      body = `<div class="sec"><h4>🗳 Голосование</h4>${r ? `<p><b>${UN_RES[r.k].icon} ${esc(resTitle(r))}</b> <span class="muted">· автор: ${esc(nat(r.by).name)}</span></p><p class="muted" style="font-size:12.5px">${UN_RES[r.k].desc}</p>
+          ${myV ? `<p>Ваш голос: <b>${{ y: '✅ за', n: '❌ против', a: '➖ воздержались' }[myV]}</b>. Итоги — после хода.</p>` : `<div class="row">${this.unVoteBtns()}</div>`}`
+        : `<p class="muted">Сейчас голосования нет. Следующая сессия — ${Stats.dateOf(Math.max(un.next, S.turn))}.</p>`}</div>
+        <div class="sec"><h4>📋 Действующие решения</h4>${act.length ? act.map(x => `<div>${x}</div>`).join('') : '<span class="muted">Нет</span>'}</div>
+        <div class="sec"><h4>ℹ Как это работает</h4><p class="muted" style="font-size:12.5px">Сессия ${name} — раз в год. Голос великой державы = 3, малой страны = 1. Резолюция принимается, если «за» больше, чем «против», и «за» не меньше четверти всех голосов.
+          ${vetoes.length ? `Постоянные члены с правом вето: ${vetoes.map(x => esc(nat(x).name)).join(', ')} — их «против» блокирует любое решение.` : 'Права вето нет.'} Сателлиты голосуют как покровитель.</p></div>`;
+    } else if (this.unTab === 'propose') {
+      const F = this.unForm, R0 = UN_RES[F.k];
+      const queued = un.q.find(x => x.by === me);
+      const list = Object.values(S.nations).filter(x => x.alive && (F.k === 'aid' || x.id !== me)).sort((a, b) => (b.major - a.major) || a.name.localeCompare(b.name, 'ru'));
+      const wars = F.k === 'peace' ? list.filter(x => enemiesOf(x.id).length) : list;
+      body = `<div class="sec"><h4>✍ Внести резолюцию</h4>${queued ? `<p>Ваша резолюция «${esc(resTitle(queued))}» ждёт ближайшей сессии.</p>` : `
+        <div class="un-kinds">${Object.entries(UN_RES).map(([k, x]) => `<button class="btn ${F.k === k ? 'gold' : 'ghost'} sm" data-act="unKind" data-id="${k}">${x.icon} ${x.name}</button>`).join('')}</div>
+        <p class="muted" style="font-size:12.5px;margin:8px 0">${R0.desc}</p>
+        ${R0.tgt ? `<label>${F.k === 'peace' ? 'Воюющая страна (вторая сторона — её главный противник)' : 'Страна'}: <select class="input" id="unTarget" style="max-width:320px">${wars.map(x => `<option value="${x.id}" ${F.t === x.id ? 'selected' : ''}>${esc(x.name)}${F.k === 'peace' ? ' — война с ' + esc(nat(enemiesOf(x.id).sort((a, b) => nationPower(b) - nationPower(a))[0]).name) : ''}</option>`).join('')}</select></label>` : ''}
+        <div class="row" style="margin-top:10px"><button class="btn gold" data-act="unSend">Внести (💰${fmt(unCost())})</button><span class="muted" style="font-size:12px">Голосование — на ближайшей сессии. Ваши союзники и друзья скорее поддержат.</span></div>`}</div>`;
+    } else {
+      body = un.hist.length ? `<table class="t"><tr><th>Дата</th><th>Резолюция</th><th class="r">За</th><th class="r">Против</th><th>Итог</th><th>Ваш голос</th></tr>${un.hist.map(h => {
+        const ok = !h.t || S.nations[h.t];
+        return `<tr><td>${h.d}</td><td>${UN_RES[h.k].icon} ${ok ? esc(resTitle(h)) : UN_RES[h.k].name}</td><td class="r">${h.y}</td><td class="r">${h.n}</td>
+          <td class="${h.res === 'pass' ? 'good' : 'bad'}">${h.res === 'pass' ? 'принята' : h.res === 'veto' ? 'вето: ' + esc(nat(h.veto).name) : 'отклонена'}</td><td>${h.my && h.my[me] ? { y: 'за', n: 'против', a: '—' }[h.my[me]] : '—'}</td></tr>`;
+      }).join('')}</table>` : '<p class="muted">Резолюций ещё не было.</p>';
+    }
+    return `<h2>🌐 ${name}</h2><div class="tabs">${tab('now', 'Сессия')}${tab('propose', 'Внести резолюцию')}${tab('hist', 'История')}</div>${body}`;
+  },
+  unVoteBtns() {
+    const veto = unVetoes().includes(S.player);
+    return `<button class="btn green" data-act="unVote" data-id="y">✅ За</button><button class="btn red" data-act="unVote" data-id="n">❌ Против${veto ? ' (вето)' : ''}</button><button class="btn ghost" data-act="unVote" data-id="a">Воздержаться</button>`;
+  },
+
+  // ---------------------------------------------------- дипломатия: новые действия
+  dip2Block(nid) {
+    const me = S.player, n = nat(nid), f = F3();
+    if (nid === me) {
+      const vs = vassalsOf(me), gs = guaranteesBy(me);
+      if (!vs.length && !gs.length && !vassalOf(me)) return '';
+      return `<div class="sec"><h4>🌐 Положение в мире</h4>${vassalOf(me) ? `<div class="warn">Вы — сателлит ${esc(nat(vassalOf(me)).name)}</div>` : ''}
+        ${vs.length ? `<div>👑 Сателлиты: ${vs.map(x => esc(nat(x).name)).join(', ')}</div>` : ''}${gs.length ? `<div>🛡 Гарантии: ${gs.map(x => esc(nat(x).name)).join(', ')}</div>` : ''}</div>`;
+    }
+    const war = atWar(me, nid), al = allied(me, nid), human = !n.ai;
+    const b = (act, text, en, hint, cls = 'ghost') => `<button class="btn ${cls}" data-act="dip2" data-id="${nid}" data-do="${act}" ${en ? '' : 'disabled'}>${text}${hint ? `<br><small>${hint}</small>` : ''}</button>`;
+    const pred = (k, arg) => (human ? '<span class="warn">решает игрок</span>' : aiAccepts2(nid, me, k, arg) ? '<span class="good">✓ согласятся</span>' : '<span class="bad">✗ откажут</span>');
+    const hasAcc = !!S.access[me + '>' + nid], gaveAcc = !!S.access[nid + '>' + me];
+    const guar = !!f.guar[me + '>' + nid], emb = (f.emb[me + '>' + nid] || 0) > S.turn, sci = !!f.sci[pk(me, nid)];
+    const myVas = vassalOf(nid) === me;
+    const dts = !war && !al ? demandTargets(me, nid) : [];
+    const info = [];
+    if (myVas) info.push('👑 ваш сателлит (платит 15% дохода)');
+    if (vassalOf(me) === nid) info.push('👑 ваш покровитель');
+    if (vassalOf(nid) && vassalOf(nid) !== me) info.push(`👑 сателлит ${esc(nat(vassalOf(nid)).name)}`);
+    if (guarantorsOf(nid).length) info.push(`🛡 гаранты: ${guarantorsOf(nid).map(x => esc(nat(x).name)).join(', ')}`);
+    if (hasAcc) info.push('🛤 у вас есть военный доступ');
+    if (gaveAcc) info.push('🛤 у неё есть доступ к вам');
+    if (embargoed(me, nid)) info.push('🚫 эмбарго');
+    if (sci) info.push('🔭 научный пакт (+8% науки)');
+    if (isSanctioned(nid)) info.push('⛓ под санкциями ' + esc(unName()));
+    if (hasCB(me, nid)) info.push(`<span class="good">⚔ у вас есть повод для войны до ${Stats.dateOf(f.cb[me + '>' + nid])}</span>`);
+    return `<div class="sec"><h4>🌐 Расширенная дипломатия</h4>${info.length ? `<div style="font-size:12.5px;margin-bottom:8px">${info.join(' · ')}</div>` : ''}<div class="dip-actions">
+      ${b('gift', '🎁 Подарок', true, `💰${fmt(giftCost(me))} · +${n.minor ? 18 : 12}`)}
+      ${!al ? (hasAcc ? '' : b('access', '🛤 Запросить военный доступ', !war, pred('access'))) : ''}
+      ${gaveAcc ? b('revokeAccess', '⛔ Отозвать доступ', true, 'её войска уйдут') : !al ? b('giveAccess', '🛤 Дать военный доступ', !war, '+5') : ''}
+      ${guar ? b('unguarantee', '🛡 Снять гарантии', true, '−15') : b('guarantee', '🛡 Гарантировать независимость', !war && !vassalOf(nid), 'защитите её от нападения')}
+      ${emb ? b('liftEmbargo', '✅ Снять эмбарго', true, '+8') : b('embargo', '🚫 Эмбарго', !al, `доход цели ${nat(me).minor ? '−1.5' : '−5'}% · −20`)}
+      ${b('denounce', '📢 Осудить', true, '−15 с ней · +5 с её врагами')}
+      ${sci ? b('sciCancel', '🔭 Разорвать научный пакт', true, '−10') : b('sci', '🔭 Научное сотрудничество', !war, '+8% науки · ' + pred('sci'))}
+      ${myVas ? b('release', '🕊 Освободить сателлит', true, '+30') : !human && !vassalOf(nid) ? b('vassal', '👑 Сделать сателлитом', true, pred('vassal')) : ''}
+      ${dts.length ? `<button class="btn ghost" data-act="demandDlg" data-id="${nid}">📜 Ультиматум…<br><small>${pred('demand')}</small></button>` : ''}
+      </div></div>`;
+  },
+  demandDialog(nid) {
+    const ps = demandTargets(S.player, nid);
+    this.modal(`<h2>📜 Ультиматум: ${esc(nat(nid).name)}</h2><p class="muted">Потребуйте пограничную провинцию. Если откажут — у вас появится повод для войны на 2 года (объявление войны не снизит стабильность).
+      ${!nat(nid).ai ? 'Решение примет игрок.' : aiAccepts2(nid, S.player, 'demand') ? '<span class="good">Они слабее втрое — скорее всего уступят.</span>' : '<span class="bad">Скорее всего откажут: нужно быть сильнее втрое (с учётом союзников и гарантов).</span>'}</p>
+      <table class="t"><tr><th>Провинция</th><th class="r">Население</th><th></th><th></th></tr>${ps.map(p => `<tr><td>${esc(provFullName(p))}</td><td class="r">${fmt(S.prov[p].pop * 1e6)}</td><td>${S.prov[p].core === S.player ? '<span class="chip ally">исконная</span>' : ''}</td>
+        <td class="r"><button class="btn sm" data-act="demandGo" data-id="${nid}" data-p="${p}">Требовать</button></td></tr>`).join('')}</table>
+      <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn ghost" data-act="dipSel" data-id="${nid}">← Назад</button></div>`, true);
+  },
+
+  // ---------------------------------------------------- звук: окно настроек
+  soundWin() {
+    const c = Sound.cfg;
+    this.modal(`<h2>🔊 Звук и музыка</h2>${this.soundBlock()}<div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn gold" data-act="close">Готово</button></div>`, true);
+    this.bindSound();
+  },
+  soundBlock() {
+    const c = Sound.cfg;
+    return `<div class="sec snd"><label>🎵 Музыка: <b id="sndMusV">${Math.round(c.music * 100)}%</b></label><input type="range" min="0" max="1" step="0.05" value="${c.music}" id="sndMus">
+      <label>🔔 Звуки: <b id="sndSfxV">${Math.round(c.sfx * 100)}%</b></label><input type="range" min="0" max="1" step="0.05" value="${c.sfx}" id="sndSfx">
+      <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="sndMute" ${c.mute ? 'checked' : ''}> Выключить весь звук</label>
+      <p class="muted" style="font-size:12px;margin:6px 0 0">Музыка своя у каждой эпохи и сочиняется прямо во время игры — мелодия не повторяется.</p></div>`;
+  },
+  bindSound() {
+    const m = $('#sndMus'), s = $('#sndSfx'), x = $('#sndMute');
+    if (m) m.oninput = () => { Sound.start(); Sound.set('music', +m.value); $('#sndMusV').textContent = Math.round(m.value * 100) + '%'; };
+    if (s) s.oninput = () => { Sound.start(); Sound.set('sfx', +s.value); $('#sndSfxV').textContent = Math.round(s.value * 100) + '%'; };
+    if (s) s.onchange = () => Sound.play('event');
+    if (x) x.onchange = () => { Sound.start(); Sound.set('mute', x.checked); updSndBtn(); };
+  },
+});
+
+function updSndBtn() { const b = $('#sndBtn'); if (b) b.textContent = Sound.cfg.mute ? '🔇' : '🔊'; }
+
+(function patchUI5() {
+  // окна
+  const open0 = UI.openWin;
+  UI.openWin = function (w) {
+    if (w === 'un') {
+      if (!S || !S.player) return;
+      const keep = $('#modal').hidden ? 0 : $('.modal-box').scrollTop;
+      this.pendingShown = null;
+      this.modal(this.winUN());
+      this.win = 'un';
+      $('.modal-box').scrollTop = keep;
+      return;
+    }
+    open0.call(this, w);
+    if (this.win === 'log' && this.logTab === 'stats') Stats.draw();
+    if (this.win === 'menu') this.bindSound();
+  };
+  // журнал: вкладки «Статистика» и «Достижения»
+  const log0 = UI.winLog;
+  UI.winLog = function () {
+    const extra = `<button class="${this.logTab === 'stats' ? 'on' : ''}" data-act="logTab" data-id="stats">📈 Статистика</button><button class="${this.logTab === 'ach' ? 'on' : ''}" data-act="logTab" data-id="ach">🏆 Достижения</button>`;
+    if (this.logTab === 'stats' || this.logTab === 'ach') {
+      const lt = this.logTab;
+      this.logTab = 'goals';
+      let h = log0.call(this);
+      this.logTab = lt;
+      h = h.slice(0, h.indexOf('</div>', h.indexOf('class="tabs"')) + 6).replace('<button class="on" data-act="logTab" data-id="goals">', '<button class="" data-act="logTab" data-id="goals">');
+      h = h.replace(/(data-id="battles">⚔ Сводки боёв<\/button>)/, '$1' + extra);
+      return h + (lt === 'stats' ? Stats.html() : Ach.html());
+    }
+    return log0.call(this).replace(/(data-id="battles">⚔ Сводки боёв<\/button>)/, '$1' + extra);
+  };
+  // меню: звук и достижения
+  const menu0 = UI.winMenu;
+  UI.winMenu = function () {
+    return menu0.call(this).replace('<div class="row"><button class="btn ghost" data-act="account">', `<div class="cols"><div>${this.soundBlock()}</div><div class="sec"><h4>🏆 Достижения</h4><p>Получено <b class="goldc">${Object.keys(Ach.got).length}</b> из ${ACH.length}.</p><button class="btn ghost" data-act="achOpen">Смотреть все</button></div></div><div class="row"><button class="btn ghost" data-act="account">`);
+  };
+  // карточка страны
+  const card0 = UI.nationCard;
+  UI.nationCard = function (nid) { return card0.call(this, nid) + this.dip2Block(nid); };
+  const chips0 = UI.statusChips;
+  UI.statusChips = function (nid) {
+    let h = chips0.call(this, nid);
+    const me = S.player;
+    if (vassalOf(nid) === me) h += ' <span class="chip ally">сателлит</span>';
+    if (vassalOf(me) === nid) h += ' <span class="chip ally">покровитель</span>';
+    if (F3().guar[me + '>' + nid]) h += ' <span class="chip nap">гарантия</span>';
+    if (S.access[me + '>' + nid]) h += ' <span class="chip">доступ</span>';
+    if (embargoed(me, nid)) h += ' <span class="chip war">эмбарго</span>';
+    if (isSanctioned(nid)) h += ' <span class="chip war">санкции</span>';
+    return h;
+  };
+  // предложения и события
+  const pend0 = UI.showPending;
+  UI.showPending = function () {
+    if (!S || !S.player || !$('#modal').hidden) return;
+    const o = S.pending.find(x => x.to === S.player && !this.answering[x.id]);
+    if (!o) return pend0.apply(this, arguments);
+    const from = o.from && S.nations[o.from];
+    const who = from ? `${sw(o.from)} <b>${esc(from.name)}</b>${!from.ai ? ' <span class="chip ally">игрок</span>' : ''}` : '';
+    const yesNo = (y, n2) => `<div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn ghost" data-act="offer" data-id="${o.id}" data-yes="0">${n2}</button><button class="btn green" data-act="offer" data-id="${o.id}" data-yes="1">${y}</button></div>`;
+    const ok = t => `<div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn" data-act="offer" data-id="${o.id}" data-yes="0">${t}</button></div>`;
+    let h = null, snd = 'event';
+    if (o.type === 'event') {
+      const e = EV[o.ev], n = nat(S.player);
+      if (!e) return this.answerOffer(o.id, false, true);
+      h = `<h2>${e.icon} ${esc(e.title)}</h2><p>${esc(e.text(n, o.a))}</p><div class="ev-opts">${e.opts.map((op, i) => `<button class="btn ghost ev-opt" data-act="evPick" data-id="${o.id}" data-opt="${i}"><b>${esc(op.t)}</b><small>${esc(op.h(o.a, n))}</small></button>`).join('')}</div>`;
+    } else if (o.type === 'unVote') {
+      const r = F3().un.cur;
+      if (!r || r.id !== o.rid || r.votes[S.player]) return this.answerOffer(o.id, false, true);
+      snd = 'un';
+      h = `<h2>🌐 ${unName()}: голосование</h2><p><b>${UN_RES[r.k].icon} ${esc(resTitle(r))}</b><br><span class="muted">Автор: ${esc(nat(r.by).name)}</span></p><p class="muted" style="font-size:12.5px">${UN_RES[r.k].desc}</p>
+        ${r.t === S.player || r.t2 === S.player ? '<p class="warn">Резолюция касается вас!</p>' : ''}<div class="row" style="justify-content:flex-end;margin-top:12px">${this.unVoteBtns()}</div>`;
+    } else if (o.type === 'access' && from) h = `<h2>🛤 Запрос военного доступа</h2><p>${who} просит разрешить её войскам проходить по нашей территории.</p>${yesNo('Разрешить', 'Отказать')}`;
+    else if (o.type === 'sci' && from) h = `<h2>🔭 Научное сотрудничество</h2><p>${who} предлагает научный пакт: +8% к науке обеим странам.</p>${yesNo('Подписать', 'Отклонить')}`;
+    else if (o.type === 'demand' && from && S.prov[o.p] && S.prov[o.p].o === S.player) {
+      snd = 'war';
+      h = `<h2 class="bad">📜 Ультиматум</h2><p>${who} требует передать ей провинцию <b>${esc(provFullName(o.p))}</b>.</p><p class="muted" style="font-size:12.5px">Мощь: ${esc(from.name)} ${fmt(powerOfSide(o.from))} против ваших ${fmt(sideWithGuards(S.player))}. Если откажете, у неё появится повод для войны.</p>${yesNo('Уступить провинцию', 'Отвергнуть')}`;
+    } else if (o.type === 'unPeace' && from && atWar(S.player, o.from)) {
+      snd = 'un';
+      h = `<h2>🕊 ${unName()} призывает к миру</h2><p>Принята резолюция о прекращении огня между вами и ${who}.</p><p class="muted" style="font-size:12.5px">Мир на условиях статус-кво. Отказ: стабильность −8, отношения со всеми странами −5.</p>${yesNo('Заключить мир', 'Отказаться')}`;
+    } else if (o.type === 'guarCall' && from) {
+      snd = 'war';
+      h = `<h2 class="warn">🛡 Гарантии в действии</h2><p>На ${who}, чью независимость мы гарантировали, напала ${o.enemy && S.nations[o.enemy] ? esc(nat(o.enemy).name) : 'враждебная держава'}. Мы вступили в войну.</p>${ok('К оружию!')}`;
+    } else if (o.type === 'vassalLost' && from) {
+      snd = 'bad';
+      h = `<h2 class="bad">✊ Сателлит вышел из подчинения</h2><p>${who} больше не подчиняется нам.</p>${ok('Понятно')}`;
+    }
+    if (h) { this.pendingShown = o.id; this.modal(h, true); Sound.play(snd); return; }
+    const r = pend0.apply(this, arguments);
+    // звук и кнопка статистики для стандартных окон
+    if (this.pendingShown === o.id) {
+      const S0 = { warDeclared: 'war', allyCall: 'war', victory: 'victory', otherVictory: 'bad', defeat: 'bad', timeup: 'victory', peace: 'good', alliance: 'good', trade: 'good', nap: 'good', surrender: 'war', peaceDeal: 'good', progDone: 'event' };
+      Sound.play(S0[o.type] || 'event');
+      if (o.type === 'timeup' || o.type === 'victory') {
+        const row = $('#modalBody').querySelector('.row[style*="flex-end"]');
+        if (row) row.insertAdjacentHTML('afterbegin', '<button class="btn ghost" data-act="statsOpen">📈 Статистика партии</button>');
+      }
+    }
+    return r;
+  };
+  // клики
+  const click0 = UI.click;
+  UI.click = function (e) {
+    const b = e.target.closest('[data-act]');
+    if (b) {
+      const act = b.dataset.act, id = b.dataset.id;
+      const go = fn => { e.preventDefault(); return fn(); };
+      const reDip = () => { if (this.win === 'diplomacy') this.openWin('diplomacy'); };
+      if (act === 'unTab') return go(() => { this.unTab = id; this.openWin('un'); });
+      if (act === 'unKind') return go(() => { this.unForm.k = id; this.openWin('un'); });
+      if (act === 'unSend') return go(() => { const t = $('#unTarget'); this.cmd('unPropose', { k: this.unForm.k, t: t ? t.value : null }, () => this.openWin('un')); });
+      if (act === 'unVote') return go(() => {
+        const pend = S.pending.find(x => x.to === S.player && x.type === 'unVote');
+        if (pend) this.answering[pend.id] = 1;
+        const wasPending = this.win !== 'un';
+        if (wasPending) $('#modal').hidden = true;
+        this.cmd('unVote', { v: id }, () => { if (pend) delete this.answering[pend.id]; if (!wasPending) this.openWin('un'); else this.showPending(); });
+      });
+      if (act === 'evPick') return go(() => {
+        const pid = +id;
+        this.answering[pid] = 1;
+        $('#modal').hidden = true;
+        this.pendingShown = null;
+        this.cmd('evPick', { id: pid, opt: +b.dataset.opt }, () => { delete this.answering[pid]; this.showPending(); });
+      });
+      if (act === 'dip2') return go(() => {
+        const d = b.dataset.do;
+        if (d === 'embargo' && !confirm(`Ввести эмбарго против ${nat(id).name}?`)) return;
+        if (d === 'vassal' && !confirm(`Потребовать, чтобы ${nat(id).name} стала вашим сателлитом?`)) return;
+        this.cmd('dip2', { to: id, act: d }, reDip);
+      });
+      if (act === 'demandDlg') return go(() => this.demandDialog(id));
+      if (act === 'demandGo') return go(() => this.cmd('dip2', { to: id, act: 'demand', arg: +b.dataset.p }, () => { this.dipSel = id; this.openWin('diplomacy'); }));
+      if (act === 'stMetric') return go(() => { Stats.metric = +id; Stats.hover = -1; this.openWin('log'); });
+      if (act === 'statsOpen') return go(() => { const p = this.pendingShown; if (p) this.answerOffer(p, false, true); this.logTab = 'stats'; this.openWin('log'); });
+      if (act === 'achOpen') return go(() => { this.logTab = 'ach'; this.openWin('log'); });
+    }
+    return click0.call(this, e);
+  };
+  // клавиша U — Совет
+  const key0 = UI.key;
+  UI.key = function (e) {
+    const k = (e.key || '').toLowerCase();
+    if ((k === 'u' || k === 'г') && !$('#game').hidden && $('#modal').hidden && !['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return this.openWin('un');
+    return key0.call(this, e);
+  };
+  // звуки: результаты команд, бои и стройки, ход
+  const after0 = UI.afterCmd;
+  UI.afterCmd = function (r, after) {
+    if (r && r.err) Sound.play('error');
+    return after0.call(this, r, after);
+  };
+  const pull0 = UI.pull;
+  UI.pull = function () {
+    const me = S.player, seen = this.fxSeen;
+    const fxs = (S.fx || []).filter(f => f.id > seen);
+    pull0.call(this);
+    if (fxs.some(f => f.k === 'nuke')) Sound.play('nuke');
+    else if (fxs.some(f => f.k === 'battle' && (f.att === me || f.def === me))) Sound.play('battle');
+    else if (fxs.some(f => f.k === 'built' && S.prov[f.p] && S.prov[f.p].o === me)) Sound.play('build');
+    Ach.check();
+    this.updUNBtn();
+  };
+  const at0 = UI.afterTurn;
+  UI.afterTurn = function () { Sound.play('turn'); return at0.apply(this, arguments); };
+  UI.updUNBtn = function () {
+    const b = $('#btnUN');
+    if (!b || !S || !S.f3) return;
+    const r = S.f3.un.cur;
+    b.classList.toggle('attn', !!(r && !r.votes[S.player]));
+  };
+  // музыка эпохи (Main объявлен в main.js, он загружается позже — подключаемся до его запуска)
+  window.addEventListener('DOMContentLoaded', () => {
+    const enter0 = Main.enterGame;
+    Main.enterGame = function () { Sound.setTheme(S.period); const r = enter0.apply(this, arguments); const sb = $('#sndBtn'); if (sb) sb.hidden = true; Ach.check(); return r; };
+    const menuShow0 = Main.showMenu;
+    Main.showMenu = function () { Sound.setTheme('menu'); const r = menuShow0.apply(this, arguments); addMenuSndBtn(); const bv = $('#bvNow'); if (bv) bv.style.display = 'none'; return r; };
+  });
+  // тихий щелчок на кнопках
+  document.addEventListener('click', e => { if (e.target.closest('button, .btn, [data-act]')) Sound.play('click'); }, true);
+})();
+
+function addMenuSndBtn() {
+  if ($('#sndBtn')) { $('#sndBtn').hidden = false; return updSndBtn(); }
+  const b = document.createElement('button');
+  b.id = 'sndBtn'; b.className = 'snd-btn'; b.title = 'Звук и музыка';
+  b.onclick = () => UI.soundWin();
+  document.body.appendChild(b);
+  updSndBtn();
+}
+
+</script>
+<script>
 /* Запасной канал сетевой игры: если прямое соединение WebRTC не удалось (роутер, мобильный интернет, провайдер),
    сообщения идут через публичный сервер сообщений MQTT по WebSocket (порт HTTPS — пропускают почти все сети).
    Здесь минимальный клиент MQTT 3.1.1 (только QoS 0) и «соединение», похожее на соединение PeerJS:
@@ -7812,7 +9406,7 @@ class RelayConn {
 'use strict';
 
 const NET_PREFIX = 'mirderzhava-v2-';
-const NET_VER = 2;
+const NET_VER = 3;
 
 const Net = {
   mode: null,          // null | 'host' | 'client'
