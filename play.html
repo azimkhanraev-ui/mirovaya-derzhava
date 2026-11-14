@@ -468,6 +468,20 @@ svg.bic { width: 16px; height: 16px; vertical-align: -3px; }
 .snd-btn:hover { border-color: var(--gold); }
 @media (max-width: 640px) { .ach-pop { left: 12px; right: 12px; max-width: none; } }
 
+/* ---------- обновления ---------- */
+.upd-box { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(4, 8, 14, .72); padding: 16px; }
+.upd-card { width: min(520px, 100%); background: var(--panel2); border: 1px solid var(--gold); border-radius: 14px; padding: 20px 24px; box-shadow: 0 30px 90px rgba(0,0,0,.7); }
+.upd-card h2 { margin: 0 0 8px; }
+.upd-notes ul { margin: 6px 0 0; padding-left: 20px; font-size: 13.5px; }
+.upd-notes { background: #141e2f; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
+.upd-bar { height: 8px; background: #101826; border-radius: 4px; overflow: hidden; margin-top: 10px; }
+.upd-bar i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .2s; }
+.upd-msg { font-size: 13px; margin-top: 6px; min-height: 18px; }
+.upd-msg a { color: var(--gold); }
+.upd-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.upd-badge { display: block; width: 100%; margin: 0 0 12px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--gold); background: rgba(227,181,75,.14); color: #ffd779; font-weight: 600; cursor: pointer; }
+.upd-badge:hover { background: rgba(227,181,75,.24); }
+
 </style>
 </head>
 <body>
@@ -589,6 +603,112 @@ const AUTH_CONFIG = {
   firebaseApiKey: 'AIzaSyD9jeH9gt1lUcCvXeYwSNKRoRyRhAI0Sfg',
   firebaseProjectId: 'dsae-de0aa',
 };
+
+</script>
+<script>
+/* Проверка обновлений. При запуске игра сверяет свою версию с сайтом:
+   • программа для компьютера — предлагает установить новую версию одной кнопкой (скачает, установит, перезапустится);
+   • браузерная версия — предлагает обновить страницу.
+   В сетевой игре все участники должны быть на одной версии (см. net.js). */
+'use strict';
+const GAME_VERSION = '1.2.0';
+const SITE_URL = 'https://azimkhanraev-ui.github.io/mirovaya-derzhava/';
+const SETUP_URL = 'https://github.com/azimkhanraev-ui/mirovaya-derzhava/releases/latest/download/MirovayaDerzhava-Setup.exe';
+
+const Update = {
+  latest: null,       // данные version.json с сайта
+  busy: false,
+  isDesktop: () => typeof window.desktop === 'object' && !!window.desktop,
+  local() { return this.isDesktop() && window.desktop.version ? window.desktop.version : GAME_VERSION; },
+  cmp(a, b) {
+    const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
+    for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0) ? 1 : -1; }
+    return 0;
+  },
+  async fetchLatest() {
+    // браузерная версия на сайте — свой version.json рядом; программа и всё остальное — с сайта игры
+    const onSite = /^https?:$/.test(location.protocol) && location.hostname.endsWith('github.io');
+    const url = (onSite ? 'version.json' : SITE_URL + 'version.json') + '?t=' + Date.now();
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  },
+  async check(force) {
+    if (!/^(https?|app):$/.test(location.protocol)) return null;   // открыто из файла (разработка/тесты)
+    try { this.latest = await this.fetchLatest(); } catch (e) { return null; }
+    const newer = this.latest && this.cmp(this.latest.version, this.local()) > 0;
+    this.badge(newer);
+    if (newer && (force || !this.snoozed())) this.show();
+    return newer ? this.latest.version : null;
+  },
+  snoozed() {
+    try { const s = JSON.parse(localStorage.getItem('md_upd_later') || 'null'); return s && s.v === this.latest.version && Date.now() - s.t < 6 * 3600e3; } catch (e) { return false; }
+  },
+  later() {
+    try { localStorage.setItem('md_upd_later', JSON.stringify({ v: this.latest.version, t: Date.now() })); } catch (e) { /* */ }
+    this.close();
+  },
+  close() { const el = document.getElementById('updBox'); if (el) el.remove(); },
+  // значок «Доступно обновление» в главном меню
+  badge(on) {
+    let b = document.getElementById('updBadge');
+    if (!on) { if (b) b.remove(); return; }
+    if (!b) {
+      b = document.createElement('button');
+      b.id = 'updBadge';
+      b.className = 'upd-badge';
+      b.onclick = () => this.show();
+      const box = document.querySelector('#menu .menu-box');
+      if (box) box.prepend(b); else document.body.appendChild(b);
+    }
+    b.textContent = `⬆ Доступно обновление ${this.latest.version} — установить`;
+  },
+  show() {
+    if (!this.latest) return;
+    this.close();
+    const v = this.latest, desk = this.isDesktop();
+    const notes = (v.whatsNew || []).map(x => `<li>${String(x).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</li>`).join('');
+    const el = document.createElement('div');
+    el.id = 'updBox';
+    el.className = 'upd-box';
+    el.innerHTML = `<div class="upd-card">
+      <h2>⬆ Нужно установить обновление</h2>
+      <p>Вышла новая версия игры: <b class="goldc">${v.version}</b> (у вас ${this.local()}).</p>
+      ${notes ? `<div class="upd-notes"><b>Что нового:</b><ul>${notes}</ul></div>` : ''}
+      <p class="muted" style="font-size:13px">${desk ? 'Игра скачает обновление (~' + Math.round((v.setup && v.setup.mb) || 140) + ' МБ), закроется, установит его и откроется снова. Сохранения останутся.' : 'Обновите страницу — новая версия загрузится сразу.'}
+        В сетевой игре все игроки должны быть на одной версии.</p>
+      <div class="upd-bar" hidden><i></i></div><div class="upd-msg muted"></div>
+      <div class="upd-row"><button class="btn ghost" data-u="later">Позже</button><button class="btn gold" data-u="go">${desk ? 'Обновить сейчас' : 'Обновить страницу'}</button></div>
+    </div>`;
+    document.body.appendChild(el);
+    el.querySelector('[data-u="later"]').onclick = () => this.later();
+    el.querySelector('[data-u="go"]').onclick = () => this.install();
+  },
+  async install() {
+    if (!this.isDesktop()) { location.reload(); return; }
+    if (this.busy) return;
+    const el = document.getElementById('updBox');
+    const bar = el.querySelector('.upd-bar'), msg = el.querySelector('.upd-msg');
+    // в сетевой партии хост сначала сохраняет игру
+    try { if (typeof Net !== 'undefined' && Net.mode === 'host' && typeof saveGame === 'function') saveGame('net'); else if (typeof S !== 'undefined' && S && S.player && typeof Net !== 'undefined' && !Net.mode && typeof saveGame === 'function') saveGame('auto'); } catch (e) { /* */ }
+    this.busy = true;
+    el.querySelectorAll('button').forEach(b => { b.disabled = true; });
+    bar.hidden = false;
+    msg.textContent = 'Скачивание…';
+    if (window.desktop.onProgress) window.desktop.onProgress(f => { bar.firstChild.style.width = Math.round(f * 100) + '%'; msg.textContent = f >= 1 ? 'Установка… игра откроется снова через несколько секунд' : `Скачивание… ${Math.round(f * 100)}%`; });
+    let r;
+    try { r = await window.desktop.update(SETUP_URL); } catch (e) { r = { ok: false, error: e.message }; }
+    if (r && r.ok) return;
+    this.busy = false;
+    el.querySelectorAll('button').forEach(b => { b.disabled = false; });
+    msg.innerHTML = `Не удалось скачать обновление (${(r && r.error) || 'ошибка'}). Скачайте установщик вручную: <a href="${SETUP_URL}" target="_blank">MirovayaDerzhava-Setup.exe</a>`;
+  },
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => Update.check(), 1500);
+  setInterval(() => { if (!document.getElementById('menu') || !document.getElementById('menu').hidden) Update.check(); }, 30 * 60e3);
+});
 
 </script>
 <script>
@@ -9553,7 +9673,15 @@ const Net = {
   async hostMsg(conn, m) {
     const pid = conn.peer;
     if (m.t === 'hello') {
-      if (m.ver !== NET_VER) { conn.send({ t: 'deny', why: 'Другая версия игры. Обновите страницу/файл.' }); setTimeout(() => conn.close(), 500); return; }
+      // все игроки — на одной версии игры
+      if (m.ver !== NET_VER || m.gv !== GAME_VERSION) {
+        const old = !m.gv || Update.cmp(m.gv, GAME_VERSION) < 0;
+        conn.send({ t: 'deny', gv: GAME_VERSION, why: old
+          ? `Нужно установить обновление: у вас ${m.gv ? 'версия ' + m.gv : 'старая версия'}, у хоста — ${GAME_VERSION}. Скачайте установщик на сайте игры ${SITE_URL} и запустите его (сохранения останутся).`
+          : `У хоста старая версия игры (${GAME_VERSION}), у вас — ${m.gv}. Хосту нужно установить обновление.` });
+        setTimeout(() => conn.close(), 500);
+        return;
+      }
       const name = String(m.name || 'Игрок').slice(0, 20);
       // переподключение по имени
       const old = this.players.find(p => p.name === name && !p.online && !p.host && p.nation);
@@ -9563,14 +9691,14 @@ const Net = {
         old.pid = pid; old.online = true;
         if (old.nation && S.nations[old.nation] && S.nations[old.nation].alive) S.nations[old.nation].ai = false;
         this.sysChat(`${name} вернулся в игру`);
-        conn.send({ t: 'welcome', pid, lobby: this.lobby, players: this.players, chat: this.chatLog.slice(-30) });
+        conn.send({ t: 'welcome', gv: GAME_VERSION, pid, lobby: this.lobby, players: this.players, chat: this.chatLog.slice(-30) });
         conn.send({ t: 'start' });
         await this.sendSnap(pid);
         this.sendStatus();
         return;
       }
       this.players.push({ pid, name, nation: null, host: false, online: true, ready: false });
-      conn.send({ t: 'welcome', pid, lobby: this.lobby, players: this.players, chat: this.chatLog.slice(-30), started: this.started });
+      conn.send({ t: 'welcome', gv: GAME_VERSION, pid, lobby: this.lobby, players: this.players, chat: this.chatLog.slice(-30), started: this.started });
       this.sysChat(this.started ? `${name} подключился и выбирает страну` : `${name} присоединился`);
       if (this.started) { await this.sendSnap(pid); this.sendStatus(); } else this.sendLobby();
       return;
@@ -9757,8 +9885,16 @@ const Net = {
         this.conn = conn;
         conn.on('data', d => {
           if (conn !== this.conn) return;
+          if (d.t === 'welcome' && d.gv !== GAME_VERSION) {
+            // хост на другой (старой) версии
+            const why = !d.gv || Update.cmp(d.gv, GAME_VERSION) < 0 ? `У хоста старая версия игры (${d.gv || 'до 1.2'}), у вас — ${GAME_VERSION}. Хосту нужно установить обновление.` : `Нужно установить обновление: у хоста версия ${d.gv}, у вас — ${GAME_VERSION}.`;
+            try { conn.close(); } catch (e) { /* */ }
+            fin(new Error(why));
+            if (d.gv) Update.check(true);
+            return;
+          }
           if (d.t === 'welcome') { this.myPid = d.pid; fin(); }
-          if (d.t === 'deny') { fin(new Error(d.why)); return; }
+          if (d.t === 'deny') { fin(new Error(d.why)); if (d.gv && Update.cmp(d.gv, GAME_VERSION) > 0) Update.check(true); return; }
           this.clientMsg(d);
         });
         conn.on('close', () => { if (conn === this.conn && done) this.lost(); });
@@ -9778,7 +9914,7 @@ const Net = {
         cli.route = env => conn.got(env);
         attach(conn);
         this.via = 'через сервер';
-        conn.send({ t: 'hello', name, ver: NET_VER });
+        conn.send({ t: 'hello', name, ver: NET_VER, gv: GAME_VERSION });
         t2 = setTimeout(() => { if (!done) { conn.close(); fin(new Error('Хост не ответил. Попробуйте ещё раз.')); } }, 15000);
       };
       let peer;
@@ -9793,7 +9929,7 @@ const Net = {
         const conn = peer.connect(NET_PREFIX + this.code, { reliable: true });
         attach(conn);
         this.via = 'напрямую';
-        conn.on('open', () => { if (this.conn === conn) conn.send({ t: 'hello', name, ver: NET_VER }); });
+        conn.on('open', () => { if (this.conn === conn) conn.send({ t: 'hello', name, ver: NET_VER, gv: GAME_VERSION }); });
       });
     });
   },
