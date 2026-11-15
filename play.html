@@ -573,7 +573,82 @@ svg.bic { width: 16px; height: 16px; vertical-align: -3px; }
 .nu-chip svg { width: 36px; height: 18px; }
 .nu-mini { width: 30px; height: 15px; vertical-align: middle; }
 
+/* =================================================================== ТЕЛЕФОН (только body.mobile) */
+.mobile, .mobile body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.mobile body { font-size: 15px; }
+.mobile .btn, .mobile button { min-height: 38px; }
+.mobile .btn.sm { min-height: 32px; }
+/* верхняя полоса: страна и показатели, листаются вбок */
+.mobile .topbar { padding: 4px 6px; gap: 6px; padding-top: max(4px, env(safe-area-inset-top)); flex-wrap: nowrap; }
+.mobile .tb-nation { font-size: 13px; max-width: 32vw; overflow: hidden; text-overflow: ellipsis; }
+.mobile .tb-nation .flag { width: 24px; height: 16px; }
+.mobile .tb-stats { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 4px; }
+.mobile .tb-stats::-webkit-scrollbar { display: none; }
+.mobile .tb-stats .stat { flex: none; font-size: 12px; padding: 2px 6px; }
+/* разделы — нижняя панель, как в мобильных играх */
+.mobile .tb-menu { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; justify-content: space-around; gap: 0; padding: 4px 2px calc(4px + env(safe-area-inset-bottom)); background: rgba(10, 16, 28, .97); border-top: 1px solid var(--line); overflow-x: auto; }
+.mobile .tb-menu button { flex: 1 0 auto; flex-direction: column; gap: 1px; border: 0; background: none; padding: 4px 6px; font-size: 18px; min-height: 46px; }
+.mobile .tb-menu button span { display: block !important; font-size: 9.5px; color: var(--muted); }
+/* панель провинции/армии — снизу, над разделами */
+.mobile .side { left: 0; right: 0; width: auto; top: auto; bottom: 56px; max-height: 52vh; border-radius: 14px 14px 0 0; padding: 10px 12px; }
+.mobile .bottom-left { left: 6px; bottom: 64px; max-width: 70vw; }
+.mobile .legend { display: none; }
+.mobile .modes { display: none; flex-direction: column; position: absolute; bottom: 46px; left: 0; width: auto; }
+.mobile .modes.open { display: flex; }
+.mobile .modes button { font-size: 14px; padding: 9px 14px; text-align: left; }
+.mobile .m-modes-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--panel); border: 1px solid var(--line); font-size: 20px; }
+.mobile .bottom-right { right: 6px; bottom: 64px; gap: 6px; }
+.mobile .date { padding: 4px 8px; font-size: 12px; }
+.mobile .date small { display: none; }
+.mobile .btn.end { padding: 10px 14px; font-size: 14px; }
+.mobile .feed { top: 50px; left: 6px; width: 70vw; max-height: 22vh; display: flex; }
+.mobile .feed div { font-size: 11px; }
+.mobile .bv-now { bottom: 120px; right: 6px; font-size: 12px; }
+/* окна — во весь экран */
+.mobile .modal { padding: 0; }
+.mobile .modal-box, .mobile .modal-box.narrow { width: 100%; max-height: 100%; height: 100%; border-radius: 0; padding: 14px 12px calc(14px + env(safe-area-inset-bottom)); }
+.mobile .modal-x { position: sticky; top: 0; float: right; width: 40px; height: 40px; z-index: 2; background: var(--panel2); border-radius: 50%; }
+.mobile .cols, .mobile .cols3, .mobile .dip-actions, .mobile .hall-speech, .mobile .ach-grid { grid-template-columns: 1fr !important; }
+.mobile .prog-grid { grid-template-columns: 1fr 1fr !important; }
+.mobile table.t { display: block; overflow-x: auto; }
+.mobile .tabs { flex-wrap: nowrap; overflow-x: auto; }
+.mobile .tabs button { flex: none; }
+/* главное меню и выбор страны */
+.mobile .screen#menu { overflow-y: auto; align-items: flex-start; }
+.mobile .menu-box { padding: 54px 14px 18px; border-radius: 0; min-height: 100%; }
+.mobile .title { font-size: 30px !important; letter-spacing: .06em; }
+.mobile .periods, .mobile .diffs { grid-template-columns: 1fr 1fr; }
+.mobile .period p, .mobile .period .desc { display: none; }
+.mobile .menu-actions { justify-content: stretch; }
+.mobile .menu-actions .btn { flex: 1 1 45%; }
+.mobile .select-panel { left: 0; right: 0; width: auto; top: auto; bottom: 0; height: 50vh; border-radius: 14px 14px 0 0; }
+/* космос и зал заседаний: панель снизу */
+.mobile .sp-panel, .mobile .hall-panel { left: 0; right: 0; width: auto; top: auto; bottom: 0; height: 48%; border-radius: 14px 14px 0 0; }
+.mobile .sp-top { flex-wrap: wrap; gap: 4px; padding: 6px; }
+.mobile .sp-title { display: none; }
+.mobile .sp-hint { display: none; }
+/* чат сети */
+.mobile #netbox { width: 60vw; left: 6px; bottom: 120px; display: block; }
+.mobile .snd-btn { bottom: calc(14px + env(safe-area-inset-bottom)); }
+.mobile .m-hint { position: fixed; z-index: 95; left: 10px; right: 10px; top: 60px; background: var(--panel2); border: 1px solid var(--gold); border-radius: 12px; padding: 12px 14px; font-size: 14px; line-height: 1.5; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+.mobile .m-hint button { margin-top: 8px; }
+.mobile .ach-pop { top: 56px; }
+.mobile .upd-card { width: 100%; }
+.mobile .topbar { overflow: hidden; }
+.mobile .tb-stats { min-width: 0; }
+.mobile .tb-nation { flex: none; }
+.mobile #side:not([hidden]) ~ .bottom-right, .mobile #side:not([hidden]) ~ .bottom-left { display: none; }
+.mobile .side .row { flex-wrap: wrap; }
+.mobile .side .kv { word-break: break-word; }
+
 </style>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b0f14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Держава">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body>
 <div id="map"></div>
@@ -703,7 +778,7 @@ const AUTH_CONFIG = {
    • браузерная версия — предлагает обновить страницу.
    В сетевой игре все участники должны быть на одной версии (см. net.js). */
 'use strict';
-const GAME_VERSION = '1.7.1';
+const GAME_VERSION = '1.7.2';
 const SITE_URL = 'https://azimkhanraev-ui.github.io/mirovaya-derzhava/';
 const SETUP_URL = 'https://github.com/azimkhanraev-ui/mirovaya-derzhava/releases/latest/download/MirovayaDerzhava-Setup.exe';
 
@@ -801,6 +876,75 @@ window.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => Update.check(), 1500);
   setInterval(() => { if (!document.getElementById('menu') || !document.getElementById('menu').hidden) Update.check(); }, 30 * 60e3);
 });
+
+</script>
+<script>
+/* Версия для телефона: включается только на телефонах (сенсорный экран и маленький экран,
+   или установленное приложение с телефона, или ?mobile=1 для проверки). На компьютерах ничего не меняется. */
+'use strict';
+
+const Mobile = {
+  on: false,
+  detect() {
+    const q = new URLSearchParams(location.search);
+    if (q.get('mobile') === '0') return false;
+    if (q.get('mobile') === '1') return true;
+    const coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+    const small = Math.min(screen.width, screen.height) <= 820;
+    return !!(coarse && small);
+  },
+  apply() {
+    this.on = this.detect();
+    if (!this.on) return;
+    document.documentElement.classList.add('mobile');
+    if (document.body) document.body.classList.add('mobile');
+    // не даём странице масштабироваться — двумя пальцами двигается только карта
+    let vp = document.querySelector('meta[name=viewport]');
+    if (!vp) { vp = document.createElement('meta'); vp.name = 'viewport'; document.head.appendChild(vp); }
+    vp.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+  },
+  init() {
+    if (!this.on) return;
+    document.body.classList.add('mobile');
+    // кнопка режимов карты — раскрывающийся список
+    const modes = document.getElementById('modes');
+    if (modes && !document.getElementById('mModes')) {
+      const b = document.createElement('button');
+      b.id = 'mModes'; b.className = 'm-modes-btn'; b.textContent = '🗺';
+      b.title = 'Режим карты';
+      b.onclick = e => { e.stopPropagation(); modes.classList.toggle('open'); };
+      modes.parentElement.insertBefore(b, modes);
+      modes.addEventListener('click', () => modes.classList.remove('open'));
+    }
+    // подсказка: как отдавать приказы пальцем
+    if (!localStorage.getItem('md_mhint')) {
+      const h = document.createElement('div');
+      h.className = 'm-hint';
+      h.innerHTML = '<b>📱 Управление на телефоне</b><br>Нажмите на армию → «➜ Марш / атака» → нажмите провинцию.<br>Двумя пальцами — приблизить карту. Долгое нажатие на провинцию — быстрый приказ выбранной армии.<br><button class="btn sm gold">Понятно</button>';
+      h.querySelector('button').onclick = () => { h.remove(); try { localStorage.setItem('md_mhint', '1'); } catch (e) { /* */ } };
+      const show = () => { if (!document.getElementById('game').hidden && !h.isConnected) document.body.appendChild(h); };
+      const enter0 = Main.enterGame;
+      Main.enterGame = function () { const r = enter0.apply(this, arguments); setTimeout(show, 1200); return r; };
+    }
+    // долгое нажатие = правый клик (на iPhone браузер его не присылает)
+    let lp = null;
+    document.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) { clearTimeout(lp); return; }
+      const t = e.touches[0], target = e.target;
+      lp = setTimeout(() => { target.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: t.clientX, clientY: t.clientY })); if (navigator.vibrate) navigator.vibrate(25); }, 600);
+    }, { passive: true });
+    ['touchmove', 'touchend', 'touchcancel'].forEach(ev => document.addEventListener(ev, () => clearTimeout(lp), { passive: true }));
+    // чат сетевой игры по умолчанию свёрнут
+    const nb = document.getElementById('netbox'); if (nb) nb.classList.add('min');
+  },
+};
+Mobile.apply();
+window.addEventListener('DOMContentLoaded', () => Mobile.init());
+
+// установленное приложение: служебный работник для запуска без интернета
+if ('serviceWorker' in navigator && /^https:$/.test(location.protocol) && location.hostname.endsWith('github.io')) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
 
 </script>
 <script>

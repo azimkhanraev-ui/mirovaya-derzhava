@@ -3,12 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Мировая Держава — глобальная стратегия для Windows</title>
+<title>Мировая Держава — глобальная стратегия для Windows и телефона</title>
 <meta name="description" content="Мировая Держава — глобальная стратегия: экономика, политика, дипломатия и война на всей планете. 4 эпохи, сотни провинций, игра по сети до 12 человек. Скачайте бесплатно для Windows или играйте в браузере.">
 <meta property="og:title" content="Мировая Держава — глобальная стратегия">
 <meta property="og:description" content="Ведите свою страну через войны и кризисы XX и XXI века. Бесплатно для Windows и в браузере.">
 <meta property="og:image" content="img/europe.jpg">
 <link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b0f14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Держава">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root {
   --bg: #0b111c; --bg2: #0f1726; --panel: #141f31; --line: #26354d; --text: #dde4ee; --muted: #8d9ab0;
@@ -109,6 +114,18 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
 .lb img { max-height: 92vh; border-radius: 10px; box-shadow: 0 20px 80px rgba(0,0,0,.6); }
 
 .only-other { display: none; }
+.phone { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; align-items: start; }
+.phone .steps li { margin: 4px 0; }
+.qr { background: #fff; padding: 12px; border-radius: 12px; width: max-content; margin: 8px 0; }
+.qr img, .qr canvas { display: block; }
+.only-phone { display: none; }
+body.is-phone .only-phone { display: block; }
+body.is-phone .only-pc { display: none !important; }
+body.is-phone .hero .cta .js-dl { display: none; }
+.os-tabs { display: flex; gap: 8px; margin: 10px 0; }
+.os-tabs button { background: rgba(255,255,255,.05); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; }
+.os-tabs button.on { border-color: var(--gold); color: var(--gold); }
+@media (max-width: 800px) { .phone { grid-template-columns: 1fr; } }
 body.not-win .only-other { display: block; }
 
 @media (max-width: 860px) {
@@ -132,6 +149,7 @@ body.not-win .only-other { display: block; }
       <a href="#eras">Эпохи</a>
       <a href="#shots">Скриншоты</a>
       <a href="#download">Скачать</a>
+      <a href="#phone">На телефон</a>
       <a href="#faq">Вопросы</a>
     </nav>
     <a class="btn gold sm" href="#download">Скачать</a>
@@ -146,6 +164,10 @@ body.not-win .only-other { display: block; }
       <a class="btn gold big js-dl" href="download/MirovayaDerzhava-Setup.exe" download>
         <span class="main"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M6 11l6 6 6-6M4 21h16"/></svg>Скачать для Windows</span>
         <span class="sub js-dl-meta">Бесплатно · установщик</span>
+      </a>
+      <a class="btn gold big only-phone js-install-btn" href="#phone" style="display:none">
+        <span class="main">📲 Установить на телефон</span>
+        <span class="sub">Бесплатно · без магазина приложений</span>
       </a>
       <a class="btn ghost big" href="play.html">
         <span class="main"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>Играть в браузере</span>
@@ -211,7 +233,7 @@ body.not-win .only-other { display: block; }
     <div class="dl">
       <div class="dl-main">
         <h3>Мировая Держава для Windows</h3>
-        <div style="color:var(--muted)" class="js-ver">Версия 1.7.1</div>
+        <div style="color:var(--muted)" class="js-ver">Версия 1.7.2</div>
         <a class="btn gold big js-dl" href="download/MirovayaDerzhava-Setup.exe" download>
           <span class="main"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M6 11l6 6 6-6M4 21h16"/></svg>Скачать установщик</span>
           <span class="sub js-dl-meta">MirovayaDerzhava-Setup.exe</span>
@@ -229,6 +251,7 @@ body.not-win .only-other { display: block; }
         <div class="card" style="border-color:rgba(227,181,75,.45)">
           <h3>Что нового</h3>
           <ul style="margin:0;padding-left:18px;color:var(--muted);font-size:14.5px;line-height:1.6">
+            <li>📱 1.7.2: приложение и интерфейс для телефона</li>
             <li>💡 1.7.1: своя идея на заседании — пишите любое предложение своими словами</li>
             <li>🔬 1.7: новая техника из науки — экзоскелеты, шагоходы, лазеры, дроны, рельсотроны; модернизация армий</li>
             <li>☄ 1.6: зонды и туман планет, орбитальные удары, космодесант, космический мусор, космическая победа, срочные заседания</li>
@@ -267,6 +290,39 @@ body.not-win .only-other { display: block; }
   </div>
 </section>
 
+<section id="phone">
+  <div class="wrap">
+    <h2>📱 Мировая Держава на телефоне</h2>
+    <p class="lead">Та же игра — с интерфейсом под телефон: разделы внизу экрана, панели выезжают снизу, крупные кнопки, карта — двумя пальцами. Устанавливается прямо отсюда, без магазина приложений, и работает без интернета (одиночная игра). Сохранения и аккаунт — те же.</p>
+    <div class="phone">
+      <div class="card">
+        <div class="only-phone">
+          <button class="btn gold big js-install" style="display:none"><span class="main">📲 Установить приложение</span><span class="sub">появится значок на главном экране</span></button>
+          <p class="js-installed" style="display:none;color:var(--good)">✓ Приложение установлено — запускайте его значком «Держава».</p>
+        </div>
+        <div class="os-tabs"><button class="on" data-os="android">Android</button><button data-os="ios">iPhone / iPad</button></div>
+        <ol class="steps os android">
+          <li>Откройте этот сайт на телефоне в <b>Chrome</b> (или Яндекс Браузере, Samsung Internet).</li>
+          <li>Нажмите <b>«📲 Установить приложение»</b> — или в меню браузера <b>⋮ → «Установить приложение»</b> / «Добавить на главный экран».</li>
+          <li>На главном экране появится значок <b>«Держава»</b> — игра откроется во весь экран.</li>
+        </ol>
+        <ol class="steps os ios" style="display:none">
+          <li>Откройте этот сайт в <b>Safari</b>.</li>
+          <li>Нажмите кнопку <b>«Поделиться»</b> (квадрат со стрелкой) → <b>«На экран „Домой“»</b>.</li>
+          <li>Нажмите «Добавить» — на экране появится значок <b>«Держава»</b>.</li>
+        </ol>
+        <p style="color:var(--muted);font-size:14px;margin:10px 0 0">Удобнее всего держать телефон горизонтально. Обновления приходят сами — при следующем запуске.</p>
+      </div>
+      <div class="card only-pc">
+        <h3>Откройте на телефоне</h3>
+        <p style="color:var(--muted);font-size:15px;margin:0">Наведите камеру телефона на код — откроется эта страница, там будет кнопка установки.</p>
+        <div class="qr" id="qr"></div>
+        <p style="font-size:14px;color:var(--muted);margin:0">или наберите адрес: <b style="color:var(--text)">azimkhanraev-ui.github.io/mirovaya-derzhava</b></p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="faq">
   <div class="wrap">
     <h2>Вопросы</h2>
@@ -275,6 +331,7 @@ body.not-win .only-other { display: block; }
     <details><summary>Можно ли играть по сети с теми, у кого браузерная версия?</summary><p>Да. Создайте комнату («Игра по сети» → «Создать комнату») и отправьте друзьям код из 5 символов. Неважно, в какой версии играет каждый — главное, чтобы версии игры были одинаковыми.</p></details>
     <details><summary>Где хранятся сохранения? Пропадут ли они при обновлении?</summary><p>Сохранения лежат в профиле пользователя Windows (папка %APPDATA%\MirovayaDerzhava) и не удаляются ни при обновлении, ни при удалении игры. С аккаунтом сохранения ещё и синхронизируются через облако.</p></details>
     <details><summary>Как обновить игру?</summary><p>Скачайте установщик с этой страницы и запустите — он поставит новую версию поверх старой. Сохранения останутся.</p></details>
+    <details><summary>Есть ли игра на телефон?</summary><p>Да — раздел «📱 На телефон» выше. Это приложение, которое ставится прямо с сайта (без Google Play и App Store): значок на экране, полный экран, интерфейс под телефон, работа без интернета. С компьютерами и браузером оно играет по сети вместе, нужен только одинаковый номер версии.</p></details>
     <details><summary>Как удалить игру?</summary><p>«Параметры» → «Приложения» → «Мировая Держава» → «Удалить». Или запустите uninstall.exe в папке игры.</p></details>
     <details><summary>Антивирус или Windows ругаются на установщик</summary><p>У игры нет платного сертификата подписи кода, поэтому Windows SmartScreen предупреждает о «неизвестном издателе». Нажмите «Подробнее» → «Выполнить в любом случае». Игра не требует прав администратора и ставится в вашу личную папку.</p></details>
   </div>
@@ -289,6 +346,7 @@ body.not-win .only-other { display: block; }
 
 <div class="lb" id="lb"><img alt=""></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 // Где лежат файлы для скачивания. Если установщик выложен на другой сайт (например, GitHub Releases
 // или Яндекс Диск), впишите сюда прямые ссылки — кнопки на странице сразу начнут вести туда.
@@ -307,6 +365,23 @@ const DOWNLOAD = {
     document.querySelectorAll('.js-ver2').forEach(el => { el.textContent = 'версия ' + v.version; });
     document.querySelectorAll('.js-portable').forEach(el => { el.textContent = 'Скачайте архив (' + v.portable.mb.toLocaleString('ru') + ' МБ)'; });
   }).catch(() => { });
+  // телефон: приложение (PWA)
+  const phone = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  if (phone) document.body.classList.add('is-phone');
+  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const tabs = document.querySelectorAll('[data-os]');
+  const showOs = os => { tabs.forEach(b => b.classList.toggle('on', b.dataset.os === os)); document.querySelectorAll('.steps.os').forEach(o => { o.style.display = o.classList.contains(os) ? '' : 'none'; }); };
+  tabs.forEach(b => b.addEventListener('click', () => showOs(b.dataset.os)));
+  if (ios) showOs('ios');
+  if (phone) document.querySelectorAll('.js-install-btn').forEach(b => { b.style.display = ''; });
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; document.querySelectorAll('.js-install').forEach(b => { b.style.display = ''; }); });
+  const install = async () => { if (!deferred) { location.hash = 'phone'; return; } deferred.prompt(); const r = await deferred.userChoice; if (r && r.outcome === 'accepted') document.querySelectorAll('.js-installed').forEach(x => { x.style.display = ''; }); deferred = null; };
+  document.querySelectorAll('.js-install').forEach(b => b.addEventListener('click', install));
+  document.querySelectorAll('.js-install-btn').forEach(b => b.addEventListener('click', e => { if (deferred) { e.preventDefault(); install(); } }));
+  window.addEventListener('appinstalled', () => document.querySelectorAll('.js-installed').forEach(x => { x.style.display = ''; }));
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
+  if (!phone && window.QRCode) { try { new QRCode(document.getElementById('qr'), { text: 'https://azimkhanraev-ui.github.io/mirovaya-derzhava/#phone', width: 168, height: 168 }); } catch (e) { } }
   // не Windows — подсказать браузерную версию
   const ua = navigator.userAgent;
   if (!/Windows/i.test(ua) || /Phone|Android|iPad|iPhone/i.test(ua)) document.body.classList.add('not-win');
