@@ -703,7 +703,7 @@ const AUTH_CONFIG = {
    • браузерная версия — предлагает обновить страницу.
    В сетевой игре все участники должны быть на одной версии (см. net.js). */
 'use strict';
-const GAME_VERSION = '1.7.0';
+const GAME_VERSION = '1.7.1';
 const SITE_URL = 'https://azimkhanraev-ui.github.io/mirovaya-derzhava/';
 const SETUP_URL = 'https://github.com/azimkhanraev-ui/mirovaya-derzhava/releases/latest/download/MirovayaDerzhava-Setup.exe';
 
@@ -6954,7 +6954,7 @@ const SPEECHES = {
   aid: { name: 'Пообещать помощь', icon: '💰', desc: 'Стоит 2 месячных дохода. Малые страны охотно поддержат.' },
   law: { name: 'Апеллировать к праву', icon: '📜', desc: 'Демократии и монархии прислушаются.' },
 };
-const sesTitle = s => {
+let sesTitle = s => {
   if (s.kind === 'un') return resTitle(s);
   const I = (s.kind === 'g' ? G_ITEMS : B_ITEMS)[s.k];
   return I.name + (s.k === 'crisis' && s.t && s.t2 ? `: ${nat(s.t).name} — ${nat(s.t2).name}` : s.t && S.nations[s.t] ? ': ' + nat(s.t).name : '');
@@ -11134,7 +11134,7 @@ Object.assign(UI, {
       const list = Object.values(S.nations).filter(x => x.alive && (F.k === 'aid' || x.id !== me)).sort((a, b) => (b.major - a.major) || a.name.localeCompare(b.name, 'ru'));
       const wars = F.k === 'peace' ? list.filter(x => enemiesOf(x.id).length) : list;
       body = `<div class="sec"><h4>✍ Внести резолюцию</h4>${queued ? `<p>Ваша резолюция «${esc(resTitle(queued))}» ждёт ближайшей сессии.</p>` : `
-        <div class="un-kinds">${Object.entries(UN_RES).map(([k, x]) => `<button class="btn ${F.k === k ? 'gold' : 'ghost'} sm" data-act="unKind" data-id="${k}">${x.icon} ${x.name}</button>`).join('')}</div>
+        <div class="un-kinds">${Object.entries(UN_RES).filter(([k, x]) => !x.hidden).map(([k, x]) => `<button class="btn ${F.k === k ? 'gold' : 'ghost'} sm" data-act="unKind" data-id="${k}">${x.icon} ${x.name}</button>`).join('')}</div>
         <p class="muted" style="font-size:12.5px;margin:8px 0">${R0.desc}</p>
         ${R0.tgt ? `<label>${F.k === 'peace' ? 'Воюющая страна (вторая сторона — её главный противник)' : 'Страна'}: <select class="input" id="unTarget" style="max-width:320px">${wars.map(x => `<option value="${x.id}" ${F.t === x.id ? 'selected' : ''}>${esc(x.name)}${F.k === 'peace' ? ' — война с ' + esc(nat(enemiesOf(x.id).sort((a, b) => nationPower(b) - nationPower(a))[0]).name) : ''}</option>`).join('')}</select></label>` : ''}
         <div class="row" style="margin-top:10px"><button class="btn gold" data-act="unSend">Внести (💰${fmt(unCost())})</button><span class="muted" style="font-size:12px">Голосование — на ближайшей сессии. Ваши союзники и друзья скорее поддержат.</span></div>`}</div>`;
@@ -14513,6 +14513,273 @@ if (typeof ACH !== 'undefined') {
     return click0.call(this, e);
   };
 })();
+
+</script>
+<script>
+/* v12: своя идея на заседании. Игрок пишет любое предложение своими словами; игра понимает смысл
+   (санкции, мир, помощь, торговля, разоружение, совместная война… и о какой стране речь) и тон текста.
+   Идея выносится на голосование в ООН, Совете великих держав или совете союза; делегаты реагируют на смысл и тон.
+   Если в тексте нет понятного действия — это «Декларация»: принятие даёт автору престиж. */
+'use strict';
+
+// ================================================================= «декларация» — символическое решение
+UN_RES.decl = { name: 'Декларация', icon: '💡', tgt: 0, hidden: true, desc: 'Символическое решение: если примут — автору престиж (+3 стабильности), голосовавшие «за» сближаются с ним.' };
+G_ITEMS.decl = { name: 'Декларация', icon: '💡', desc: 'Символическое решение: если примут — автору престиж, голосовавшие «за» сближаются с ним.' };
+B_ITEMS.decl = { name: 'Декларация', icon: '💡', desc: 'Символическое решение союза: если примут — автору престиж, члены «за» сближаются с ним.' };
+REASONS.decl = { y: ['Под этим может подписаться каждый.', 'Хорошая идея — мы поддерживаем.', 'Это в интересах всех народов.'], n: ['Пустые слова, ничего не изменят.', 'Мы не согласны с такой формулировкой.', 'Это выгодно только автору.'] };
+
+// ================================================================= разбор текста
+const IDEA_POS = ['мир', 'помощ', 'дружб', 'сотруднич', 'развит', 'наук', 'торгов', 'процвет', 'безопас', 'свобод', 'единств', 'климат', 'здоров', 'образован', 'гуманит', 'спасе', 'защит', 'справедлив', 'переговор', 'голод', 'беженц', 'космос', 'исследов'];
+const IDEA_NEG = ['войн', 'напад', 'уничтож', 'захват', 'санкц', 'угроз', 'бомб', 'наказ', 'изгн', 'оккупац', 'агресс', 'террор', 'диктат', 'ультиматум', 'блокад', 'эмбарго'];
+function ideaTone(txt) {
+  const t = String(txt || '').toLowerCase();
+  let s = 0;
+  IDEA_POS.forEach(w => { if (t.includes(w)) s += 1; });
+  IDEA_NEG.forEach(w => { if (t.includes(w)) s -= 1; });
+  return clamp(s, -4, 4);
+}
+// какая страна упомянута (по названию или его началу)
+function ideaTarget(txt, nid) {
+  const t = ' ' + String(txt || '').toLowerCase().replace(/[«»"',.!?;:()]/g, ' ') + ' ';
+  let best = null, bl = 0;
+  Object.values(S.nations).forEach(n => {
+    if (!n.alive || n.id === nid) return;
+    const nm = n.name.toLowerCase().replace(/[«»"']/g, '');
+    const words = nm.split(/\s+/).filter(w => w.length >= 4 && !['республика', 'королевство', 'империя', 'государство', 'федерация', 'народная', 'демократическая', 'союз', 'социалистических', 'советских', 'соединённые', 'штаты'].includes(w));
+    let hit = t.includes(' ' + nm) ? nm.length + 10 : 0;
+    words.forEach(w => { const stem = w.slice(0, Math.max(3, w.length <= 5 ? w.length - 1 : w.length - 2)); if (t.includes(' ' + stem)) hit = Math.max(hit, stem.length); });
+    if (['сша', 'америк'].some(x => t.includes(x)) && n.id === 'USA') hit = Math.max(hit, 6);
+    if (hit > bl || (hit === bl && hit && n.major)) { bl = hit; best = n.id; }
+  });
+  return bl >= 3 ? best : null;
+}
+// что предлагается: действие для тела (un | g | bloc)
+function ideaEffect(txt, body) {
+  const t = String(txt || '').toLowerCase();
+  const has = (...w) => w.some(x => t.includes(x));
+  if (body === 'un') {
+    if (has('санкц', 'эмбарго', 'блокад')) return 'sanctions';
+    if (has('осуд', 'осужд', 'порица')) return 'condemn';
+    if (has('перемир', 'прекратить огонь', 'прекращение огня', 'мир между', 'остановить войн', 'заключить мир', 'мирные переговоры', 'мирный договор', 'прекратить войн')) return 'peace';
+    if (has('ядерн', 'атомн') && has('запрет', 'отказ', 'разоруж', 'уничтож')) return 'nukeBan';
+    if (has('помощ', 'гуманитар', 'голод', 'беженц', 'поддерж')) return 'aid';
+    if (has('торгов', 'рын', 'пошлин', 'таможен')) return 'freeTrade';
+    return 'decl';
+  }
+  if (body === 'g') {
+    if (has('торгов', 'рын', 'пошлин')) return 'tradePact';
+    if (has('разоруж', 'вооруж', 'ядерн', 'гонк')) return 'arms';
+    if (has('влиян', 'раздел', 'зон')) return 'spheres';
+    if (has('климат', 'эколог', 'природ', 'выброс')) return 'climate';
+    if (has('кризис', 'перемир', 'прекратить войн', 'остановить войн', 'урегулир')) return 'crisis';
+    return 'decl';
+  }
+  if (has('войн', 'напад', 'удар', 'атак', 'разгром')) return 'jointWar';
+  if (has('фонд', 'бюджет', 'оборон', 'взнос', 'армия')) return 'budget';
+  if (has('принять', 'вступ', 'приглас')) return 'admit';
+  if (has('исключ', 'выгна', 'изгна')) return 'expel';
+  return 'decl';
+}
+function ideaNeedsTarget(body, eff) {
+  if (body === 'un') return !!(UN_RES[eff] && UN_RES[eff].tgt);
+  return !!((body === 'g' ? G_ITEMS : B_ITEMS)[eff] || {}).tgt;
+}
+const ideaBodyName = body => body === 'un' ? unName() : body === 'g' ? 'Совет великих держав' : `Совет союза «${(blocById(+body) || {}).name || ''}»`;
+
+// ================================================================= внести идею
+function proposeIdea(nid, body, title, txt, eff, t) {
+  const n = nat(nid);
+  title = String(title || '').trim().slice(0, 80);
+  txt = String(txt || '').trim().slice(0, 400);
+  if (txt.length < 5) return 'Напишите свою идею (хотя бы несколько слов)';
+  if (!title) { title = txt.split(/[.!?\n]/)[0]; if (title.length > 70) title = title.slice(0, 70).replace(/\s+\S*$/, '') + '…'; }
+  eff = eff || ideaEffect(txt, body === 'un' || body === 'g' ? body : 'bloc');
+  if (t && (!S.nations[t] || !S.nations[t].alive)) t = null;
+  if (!t) t = ideaTarget(txt, nid);
+  n.ideaT = typeof n.ideaT === 'object' && n.ideaT ? n.ideaT : {};
+  if (n.ideaT[body] === S.turn) return 'В этом органе вы уже вносили идею в этом ходу';
+  const tone = ideaTone(txt);
+  const custom = { title, txt, tone };
+  if (body === 'un') {
+    const un = F3().un;
+    if (un.cur) return 'Сейчас идёт голосование — сначала завершите его';
+    if (!UN_RES[eff]) eff = 'decl';
+    let t2 = null;
+    if (eff === 'peace') { t2 = t && enemiesOf(t).sort((a, b) => nationPower(b) - nationPower(a))[0]; if (!t || !t2) return 'Для призыва к миру укажите воюющую страну'; }
+    if (UN_RES[eff].tgt && !t) return 'Укажите страну, о которой идея';
+    if ((eff === 'sanctions' || eff === 'condemn') && t === nid) return 'Нельзя против себя';
+    const r = { k: eff, t: UN_RES[eff].tgt ? t : null, t2, by: nid };
+    if (!unValid(r)) return 'Такое решение сейчас принять нельзя (уже действует или нет войны)';
+    const c = unCost();
+    if (n.gold < c) return `Недостаточно средств (💰${fmt(c)})`;
+    n.gold -= c; n.ideaT[body] = S.turn;
+    un.cur = Object.assign({ id: uid(), end: S.turn + 1, votes: {}, d: dateStr(), custom }, r);
+    un.cur.kind = 'un'; un.cur.sway = {}; un.cur.spoke = {}; un.cur.lob = {};
+    un.cur.log = [{ n: nid, st: 'y', txt: txt, me: 1 }].concat(aiSpeeches(un.cur));
+    log(`💡 ${unName()}: ${n.name} выносит на голосование своё предложение — «${title}».`, 'big', null);
+    humans().filter(h => h !== nid).forEach(h => S.pending.push({ id: uid(), to: h, type: 'unVote', rid: un.cur.id }));
+    return { sid: 'un' };
+  }
+  let mem, bid = null, kind;
+  if (body === 'g') {
+    if (!n.major) return 'В Совет великих держав входят только великие державы';
+    if (F5().ses.some(s => !s.done && s.kind === 'g')) return 'Совет уже заседает — сначала завершите голосование';
+    if (!G_ITEMS[eff]) eff = 'decl';
+    kind = 'g';
+    mem = Object.values(S.nations).filter(x => x.alive && x.major).sort((a, b) => nationPower(b.id) - nationPower(a.id)).slice(0, 10).map(x => x.id);
+    humans().forEach(h => { if (nat(h).major && !mem.includes(h)) mem.push(h); });
+  } else {
+    const b = blocById(+body);
+    if (!b || !b.mem.includes(nid)) return 'Вы не в этом союзе';
+    if (F5().ses.some(s => !s.done && s.bid === b.id)) return 'Совет союза уже заседает';
+    if (!B_ITEMS[eff]) eff = 'decl';
+    if (eff === 'expel' && !b.mem.includes(t)) return 'Укажите члена союза';
+    if (eff === 'admit' && (!t || b.mem.includes(t))) return 'Укажите страну, которую принять';
+    if (eff === 'jointWar' && (!t || b.mem.includes(t))) return 'Укажите страну-противника';
+    kind = 'bloc'; mem = b.mem; bid = b.id;
+  }
+  let t2 = null;
+  if (eff === 'crisis') { t = t || enemiesOf(nid)[0]; t2 = t && enemiesOf(t)[0]; if (!t || !t2) return 'Укажите воюющую страну'; }
+  if (ideaNeedsTarget(kind === 'g' ? 'g' : 'bloc', eff) && !t) return 'Укажите страну, о которой идея';
+  const c = Math.round(40 * P().costMul);
+  if (n.gold < c) return `Недостаточно средств (💰${fmt(c)})`;
+  n.gold -= c; n.ideaT[body] = S.turn;
+  const s = sesOpen(kind, eff, mem, nid, t, t2, bid);
+  s.custom = custom;
+  s.log = [{ n: nid, st: 'y', txt, me: 1 }].concat(aiSpeeches(s));
+  S.pending = S.pending.filter(x => !(x.type === 'asm' && x.sid === s.id && x.to === nid));
+  return { sid: s.id };
+}
+
+// ================================================================= голоса и итоги с учётом идеи
+(function () {
+  // заголовок: своя формулировка
+  const rt0 = resTitle;
+  resTitle = function (r) { return r && r.custom ? `💡 ${r.custom.title}` : rt0.apply(this, arguments); };
+  const st0 = sesTitle;
+  sesTitle = s => (s && s.custom ? `💡 ${s.custom.title}` : st0(s));
+  // ООН: голос по декларации — тон текста и отношения к автору
+  const ai0 = aiUnVote;
+  aiUnVote = function (v, r) {
+    if (r.k !== 'decl') {
+      const x = ai0(v, r);
+      if (!r.custom) return x;
+      const order = ['N', 'n', 'a', 'y'], i = order.indexOf(x), step = r.custom.tone >= 2 ? 1 : r.custom.tone <= -2 ? -1 : 0;
+      return v === r.t || v === r.by ? x : order[clamp(i + step, 0, 3)];
+    }
+    if (v === r.by) return 'y';
+    const sc = rel(v, r.by) / 4 + r.custom.tone * 4 + ((r.sway && r.sway[v]) || 0) + (seededNoise(r.id, v) * 48 - 24) + (r.t && v === r.t ? -40 : 0) - (nat(v).gov !== nat(r.by).gov ? 6 : 0);
+    return sc > 12 ? 'y' : sc < -12 ? 'n' : 'a';
+  };
+  const sc0 = sesScore;
+  sesScore = function (s, v) {
+    if (s.k !== 'decl') return sc0(s, v) + (s.custom ? s.custom.tone * 3 : 0);
+    if (v === s.by) return 80;
+    return rel(v, s.by) / 4 + s.custom.tone * 4 + ((s.sway && s.sway[v]) || 0) + (seededNoise(s.id, v) * 48 - 24) - (nat(v).gov !== nat(s.by).gov ? 6 : 0);
+  };
+  // итог декларации
+  const res0 = unResolve;
+  unResolve = function () {
+    const r = F3().un.cur;
+    res0.apply(this, arguments);
+    const h = F3().un.hist[0];
+    if (r && h && r.custom) { h.custom = r.custom; if (h.res === 'pass' && r.k === 'decl') declApply(r.by, Object.keys(h.v || r.votes).filter(x => (h.v || r.votes)[x] === 'y')); }
+  };
+  const ap0 = sesApply;
+  sesApply = function (s, yes) { if (s.k === 'decl') return declApply(s.by, yes); return ap0.apply(this, arguments); };
+})();
+function declApply(by, yes) {
+  const A = S.nations[by];
+  if (!A || !A.alive) return;
+  A.stab = Math.min(100, A.stab + 3);
+  yes.forEach(x => { if (x !== by) addRel(x, by, 5); });
+  if (isHuman(by)) { const st = F3().stat[by]; if (st) st.ideas = (st.ideas || 0) + 1; }
+}
+
+Object.assign(CMD, {
+  idea(nid, { body, title, txt, eff, t }) {
+    const r = proposeIdea(nid, body, title, txt, eff, t || null);
+    if (typeof r === 'string') return E(r);
+    return R('💡 Ваша идея вынесена на голосование', 'good', { idea: r.sid });
+  },
+});
+
+// ================================================================= интерфейс: форма «Ваша идея»
+const IdeaUI = {
+  draft: { title: '', txt: '', eff: '', t: '' },
+  // форма для тела body ('un' | 'g' | id союза)
+  html(body) {
+    const me = S.player, D = this.draft;
+    const kind = body === 'un' ? 'un' : body === 'g' ? 'g' : 'bloc';
+    const auto = ideaEffect(D.txt, kind), autoT = ideaTarget(D.txt, me);
+    const eff = D.eff || auto;
+    const list = kind === 'un' ? UN_RES : kind === 'g' ? G_ITEMS : B_ITEMS;
+    const opts = Object.entries(list).map(([k, x]) => `<option value="${k}" ${eff === k ? 'selected' : ''}>${x.icon} ${x.name}${k === auto && !D.eff ? ' (по тексту)' : ''}</option>`).join('');
+    const t = D.t || autoT || '';
+    const tone = ideaTone(D.txt);
+    const nations = Object.values(S.nations).filter(n => n.alive && n.id !== me).sort((a, b) => (b.major - a.major) || a.name.localeCompare(b.name, 'ru'));
+    const cost = kind === 'un' ? unCost() : Math.round(40 * P().costMul);
+    return `<div class="sec idea-box"><h4>💡 Ваша идея — ${esc(ideaBodyName(body))}</h4>
+      <input class="input" id="ideaTitle" maxlength="80" placeholder="Название (можно не писать)" value="${esc(D.title)}">
+      <textarea class="input" id="ideaTxt" maxlength="400" rows="3" placeholder="Напишите своими словами, что предлагаете. Например: «Ввести санкции против агрессора» или «Объявить десятилетие освоения космоса»">${esc(D.txt)}</textarea>
+      <div class="idea-meta"><span>Игра поняла: <b>${list[auto] ? list[auto].icon + ' ' + list[auto].name : '—'}</b>${autoT ? ` · о стране <b>${esc(nat(autoT).name)}</b>` : ''} · тон: <b class="${tone > 0 ? 'good' : tone < 0 ? 'bad' : ''}">${tone > 0 ? 'миролюбивый' : tone < 0 ? 'жёсткий' : 'нейтральный'}</b></span></div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px"><label style="font-size:12.5px">Если примут: <select class="input sm" id="ideaEff">${opts}</select></label>
+        <label style="font-size:12.5px">Страна: <select class="input sm" id="ideaT"><option value="">— нет —</option>${nations.map(n => `<option value="${n.id}" ${t === n.id ? 'selected' : ''}>${esc(n.name)}</option>`).join('')}</select></label></div>
+      <small class="muted">${esc((list[eff] || {}).desc || '')} Делегаты реагируют на смысл и тон: миролюбивые идеи охотнее поддерживают.</small>
+      <div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn gold" data-idea="send" data-body="${body}">💡 Вынести на голосование · 💰${fmt(cost)}</button></div></div>`;
+  },
+  bind(root, rerender) {
+    const q = s => root.querySelector(s);
+    const ti = q('#ideaTitle'), tx = q('#ideaTxt'), ef = q('#ideaEff'), tt = q('#ideaT');
+    if (!tx) return;
+    let tm = 0;
+    ti.oninput = () => { this.draft.title = ti.value; };
+    tx.oninput = () => { this.draft.txt = tx.value; clearTimeout(tm); tm = setTimeout(() => { const pos = tx.selectionStart; rerender(); const t2 = root.querySelector('#ideaTxt'); if (t2) { t2.focus(); t2.setSelectionRange(pos, pos); } }, 700); };
+    ef.onchange = () => { this.draft.eff = ef.value; rerender(); };
+    tt.onchange = () => { this.draft.t = tt.value; };
+    const b = q('[data-idea="send"]');
+    b.onclick = () => {
+      const body = b.dataset.body;
+      UI.cmd('idea', { body, title: this.draft.title, txt: this.draft.txt, eff: this.draft.eff || ideaEffect(this.draft.txt, body === 'un' ? 'un' : body === 'g' ? 'g' : 'bloc'), t: this.draft.t || ideaTarget(this.draft.txt, S.player) }, r => {
+        if (r && !r.err) { this.draft = { title: '', txt: '', eff: '', t: '' }; UI.closeModal(); Hall.show(r.idea); }
+      });
+    };
+  },
+};
+
+(function patchIdeas() {
+  // в зале: после голосования (или если вопрос уже решён) — своя идея в этом же органе
+  const hr0 = Hall.render;
+  Hall.render = function () {
+    hr0.apply(this, arguments);
+    if (!this.open) return;
+    const s = this.ses(), P0 = $('#hallPanel');
+    if (!s || !P0) return;
+    const me = S.player;
+    const body = s.kind === 'un' ? 'un' : s.kind === 'g' ? 'g' : String(s.bid);
+    const member = sesMembers(s).includes(me);
+    if (!member) return;
+    if (this.last) { P0.insertAdjacentHTML('beforeend', IdeaUI.html(body)); IdeaUI.bind(P0, () => this.render()); }
+    else P0.insertAdjacentHTML('beforeend', '<div class="sec muted" style="font-size:12.5px">💡 Свою идею можно вынести после голосования по текущему вопросу — форма появится здесь.</div>');
+  };
+  // окно «Совет»: форма на вкладках «Внести резолюцию», «Совет держав» и в карточке своего союза
+  const un0 = UI.winUN;
+  UI.winUN = function () {
+    let h = un0.call(this);
+    if (this.unTab === 'propose') h += IdeaUI.html('un');
+    if (this.unTab === 'g' && nat(S.player).major) h += IdeaUI.html('g');
+    if (this.unTab === 'blocs' && blocsOf(S.player).length) h += IdeaUI.html(String(blocsOf(S.player)[0].id));
+    return h;
+  };
+  const ow0 = UI.openWin;
+  UI.openWin = function (w) { const r = ow0.apply(this, arguments); if (w === 'un') IdeaUI.bind($('#modalBody'), () => this.openWin('un')); return r; };
+  // в истории ООН — своя формулировка и текст
+  const st = document.createElement('style');
+  st.textContent = `.idea-box textarea{width:100%;resize:vertical;margin-top:6px;font:inherit;min-height:64px}.idea-box input{width:100%}.idea-meta{font-size:12.5px;margin-top:6px}`;
+  document.head.appendChild(st);
+})();
+
+if (typeof ACH !== 'undefined') ACH.splice(ACH.length - 1, 0, { id: 'idea', i: '💡', n: 'Автор идеи', d: 'Проведите на заседании свою идею.', c: c => (c.s.ideas || 0) >= 1 || (S.f3 && S.f3.un.hist.some(h => h.custom && h.by === c.me && h.res === 'pass')) });
 
 </script>
 <script>
