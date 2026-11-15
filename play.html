@@ -560,6 +560,19 @@ svg.bic { width: 16px; height: 16px; vertical-align: -3px; }
 .bloc-col { display: inline-block; width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; }
 .bloc-col.on { border-color: #fff; }
 
+/* ---------- v10 ---------- */
+.chron { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; max-height: 260px; overflow: auto; }
+.strike-box { border-color: #6b2a2a; }
+
+/* ---------- v11: новая техника ---------- */
+.nu-card { display: flex; gap: 14px; align-items: center; border: 1px solid #6b5a2a; background: #1f1c14; border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
+.nu-pic { width: 120px; height: 60px; flex: none; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
+.nu-card > div { flex: 1; }
+.nu-chips { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.nu-chip { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; }
+.nu-chip svg { width: 36px; height: 18px; }
+.nu-mini { width: 30px; height: 15px; vertical-align: middle; }
+
 </style>
 </head>
 <body>
@@ -690,7 +703,7 @@ const AUTH_CONFIG = {
    • браузерная версия — предлагает обновить страницу.
    В сетевой игре все участники должны быть на одной версии (см. net.js). */
 'use strict';
-const GAME_VERSION = '1.5.0';
+const GAME_VERSION = '1.7.0';
 const SITE_URL = 'https://azimkhanraev-ui.github.io/mirovaya-derzhava/';
 const SETUP_URL = 'https://github.com/azimkhanraev-ui/mirovaya-derzhava/releases/latest/download/MirovayaDerzhava-Setup.exe';
 
@@ -4589,7 +4602,7 @@ const AI = {
       const tiers = tiersFor(n, cat);
       if (!tiers.length) continue;
       let u;
-      if (cat === 'inf') u = tiers.includes('inf1') ? (Math.random() < 0.15 && tiers.includes('inf2') ? 'inf2' : 'inf1') : tiers[0];
+      if (cat === 'inf') { const hi = tiers.filter(x => UNITS[x].req >= 4); u = hi.length && Math.random() < 0.45 ? hi[hi.length - 1] : tiers.includes('inf1') ? (Math.random() < 0.15 && tiers.includes('inf2') ? 'inf2' : 'inf1') : tiers[0]; }
       else if (cat === 'ship') {
         const war2 = war.length > 0;
         const opts = tiers.filter(x => x !== 'bb' || Math.random() < 0.3);
@@ -6139,7 +6152,7 @@ function spaceTick() {
       m.left--;
       if (m.left > 0) return true;
       const B = BODIES[m.body];
-      if (Math.random() < missionChance(n.id)) {
+      if (Math.random() < missionChance(n.id) + (m.sv ? 0.1 : 0)) {
         s.bases[m.body] = { b: { hab: 1 }, q: null, t: S.turn };
         log(`🏳 ${n.name}: экспедиция достигла цели — ${B.name}! Основана база.`, isHuman(n.id) ? 'good' : 'info', null);
         claimFirst(n.id, m.body === 'moon' ? 'moon' : m.body === 'mars' ? 'mars' : m.body, m.body === 'moon' ? 'первый человек на Луне' : m.body === 'mars' ? 'первый человек на Марсе' : 'первая база: ' + B.name);
@@ -7236,6 +7249,478 @@ Object.assign(CMD, {
 
 </script>
 <script>
+/* v10: космос до конца. Зонды-разведчики (исследование тел, туман неизвестности), орбитальные удары,
+   гарнизоны и захват районов на планетах в войне, космический мусор (Кесслер) и его уборка,
+   космические события, космическая победа, хроника. Плюс: срочные заседания и постепенное улучшение отношений. */
+'use strict';
+
+// ================================================================= технологии и грузы
+SPACE_TECH.push({ id: 'cleanup', tier: 4, req: ['station'], name: 'Очистка орбиты', icon: '🧹', cost: 240, desc: 'Аппараты-уборщики снимают мусор с орбиты.' });
+STECH.cleanup = SPACE_TECH[SPACE_TECH.length - 1];
+SPACE_BLD.push({ id: 'garrison', name: 'Гарнизон', icon: '💂', cost: 90, turns: 2, max: 3, desc: 'Космодесант: защищает район и позволяет захватывать соседние районы врага во время войны.' });
+SBLD.garrison = SPACE_BLD[SPACE_BLD.length - 1];
+// зонд: сколько нужно грузоподъёмности и какая технология
+const PROBE = { moon: [1, 'sat'], venus: [2, 'manned'], mercury: [2, 'manned'], mars: [2, 'manned'], phobos: [2, 'manned'], ceres: [2, 'station'], europa: [2, 'lunarBase'], ganymede: [2, 'lunarBase'], titan: [2, 'lunarBase'], enceladus: [2, 'lunarBase'] };
+const probeCost = nid => Math.round(50 * P().costMul);
+const surveyed = (nid, body) => !!(S.space && S.space.n[nid] && ((S.space.n[nid].survey || {})[body] || S.space.n[nid].bases[body]));
+
+// ================================================================= расширение пусков: зонд и уборщик
+(function () {
+  const chk0 = launchCheck;
+  launchCheck = function (nid, r, payload, body, tgt) {
+    if (payload !== 'probe' && payload !== 'sweep') {
+      const c = chk0(nid, r, payload, body, tgt);
+      if (payload === 'exp' && typeof c === 'object' && !surveyed(nid, body)) c.warn = 'Тело не исследовано зондом: шанс посадки ниже на 10%';
+      return c;
+    }
+    SPACE2();
+    const n = nat(nid), s = SP(nid);
+    const e = rocketOk(nid, r);
+    if (e) return e;
+    s.launched = s.launched && s.launched.t === S.turn ? s.launched : { t: S.turn, k: 0 };
+    if (s.launched.k >= launchesPerTurn(nid)) return `Все стартовые столы заняты в этом ходу (пусков за ход: ${launchesPerTurn(nid)})`;
+    let pay, cost = rocketCost(nid, r);
+    if (payload === 'probe') {
+      const pr = PROBE[body];
+      if (!pr) return 'Выберите цель для зонда';
+      if (!hasST(nid, pr[1])) return `Нужна космическая технология «${STECH[pr[1]].name}»`;
+      if (surveyed(nid, body)) return 'Тело уже исследовано';
+      if ((s.probes || []).some(p => p.body === body)) return 'Зонд уже летит туда';
+      pay = pr[0]; cost += probeCost(nid);
+    } else {
+      if (!hasST(nid, 'cleanup')) return 'Нужна технология «Очистка орбиты»';
+      if ((S.space.debris || 0) < 1) return 'Орбита чиста';
+      pay = 2; cost += Math.round(70 * P().costMul);
+    }
+    if (ROCKETS[r].pay < pay) return `Ракета слишком слабая: нужна грузоподъёмность ${pay}, у неё ${ROCKETS[r].pay}`;
+    if (n.gold < cost) return `Недостаточно средств (нужно 💰${fmt(cost)})`;
+    return { cost, pay };
+  };
+  const do0 = doLaunch;
+  doLaunch = function (nid, r, payload, body, tgt) {
+    SPACE3();
+    const deb0 = S.space.debris || 0;
+    if (payload !== 'probe' && payload !== 'sweep') {
+      const before = S.space.launches.length;
+      const res = do0.apply(this, arguments);
+      if (typeof res === 'object') {
+        const L = S.space.launches[S.space.launches.length - 1];
+        if (L && S.space.launches.length > before) {
+          if (!L.ok) S.space.debris = deb0 + 2;
+          if (L.hit) S.space.debris = (S.space.debris || 0) + 8;
+          if (payload === 'exp' && L.ok) { const m = SP(nid).missions[SP(nid).missions.length - 1]; if (m) m.sv = surveyed(nid, body); }
+          chron(L.ok ? (payload === 'exp' ? `🚀 ${nat(nid).name}: экспедиция → ${BODIES[body].name}` : payload === 'asat' ? `🎯 ${nat(nid).name} сбивает чужой спутник` : `🛰 ${nat(nid).name}: на орбите ${SATS[payload].name.toLowerCase()}`) : `💥 ${nat(nid).name}: авария ракеты`, nid);
+        }
+      }
+      return res;
+    }
+    const c = launchCheck(nid, r, payload, body, tgt);
+    if (typeof c === 'string') return c;
+    const n = nat(nid), s = SP(nid), sp = S.space;
+    n.gold -= c.cost; s.launched.k++;
+    const ok = Math.random() < rocketRel(nid, r);
+    const L = { id: uid(), o: nid, r, p: payload === 'probe' ? 'exp' : 'comm', probe: payload === 'probe', body: body || null, ok, t: S.turn, d: dateStr(), site: launchSite(nid) };
+    sp.launches.push(L); if (sp.launches.length > 40) sp.launches.splice(0, sp.launches.length - 40);
+    if (!ok) { sp.debris = (sp.debris || 0) + 2; chron(`💥 ${n.name}: авария ракеты`, nid); return { ok, msg: `💥 Авария ракеты «${ROCKETS[r].name}» (−💰${fmt(c.cost)}).` }; }
+    if (payload === 'probe') {
+      const t = Math.max(1, Math.ceil(missionTurns(nid, body) * 0.7));
+      (s.probes = s.probes || []).push({ id: uid(), body, left: t, total: t });
+      chron(`🛰 ${n.name}: зонд → ${BODIES[body].name}`, nid);
+      return { ok, msg: `🛰 Зонд летит к цели «${BODIES[body].name}»: ${t} ход.` };
+    }
+    const k = Math.min(sp.debris, 15);
+    sp.debris -= k;
+    chron(`🧹 ${n.name} убирает мусор с орбиты`, nid);
+    return { ok, msg: `🧹 Уборщик снял с орбиты ${Math.round(k)} обломков. Осталось ${Math.round(sp.debris)}.` };
+  };
+  // мусор снижает надёжность ракет
+  const rel0 = rocketRel;
+  rocketRel = function (nid, r) { return Math.max(0.5, rel0(nid, r) - Math.min(0.12, 0.002 * ((S.space && S.space.debris) || 0))); };
+})();
+
+// ================================================================= состояние v10
+function SPACE3() {
+  const sp = SPACE2();
+  sp.debris = sp.debris || 0;
+  sp.chron = sp.chron || [];
+  sp.strikes = sp.strikes || [];
+  return sp;
+}
+function chron(text, nid) {
+  const sp = SPACE3();
+  sp.chron.unshift({ t: S.turn, d: dateStr(), text, o: nid || null });
+  if (sp.chron.length > 30) sp.chron.length = 30;
+}
+
+// ================================================================= орбитальный удар
+function strikeReady(nid) { return satsOf(nid, 'weapon').filter(x => (x.cd || 0) <= S.turn); }
+function orbStrike(nid, p) {
+  SPACE3();
+  const ps = S.prov[p];
+  if (!ps) return 'Нет такой провинции';
+  if (!atWar(nid, ps.o)) return 'Удар возможен только по стране, с которой идёт война';
+  const w = strikeReady(nid)[0];
+  if (!w) return satsOf(nid, 'weapon').length ? 'Все боевые платформы перезаряжаются (4 хода)' : 'Нужна боевая орбитальная платформа на орбите';
+  w.cd = S.turn + 4;
+  const T = nat(ps.o);
+  let lost = 0;
+  armiesIn(p).forEach(a => { if (a.o === ps.o || atWar(nid, a.o)) { const m0 = mpOf(a.u); applyLosses(a.u, 0.22); lost += m0 - mpOf(a.u); nat(a.o).lossTurn += m0 - mpOf(a.u); cleanArmy(a); } });
+  const bl = Object.keys(ps.b).filter(k => ps.b[k] > 0);
+  let hit = '';
+  if (bl.length) { const k = bl[Math.floor(Math.random() * bl.length)]; ps.b[k]--; hit = BLD[k] ? BLD[k].name : k; G.supVer++; }
+  ps.pop *= 0.99;
+  T.stab = Math.max(0, T.stab - 3);
+  addRel(ps.o, nid, -15);
+  Object.keys(S.nations).forEach(x => { if (x !== nid && x !== ps.o && S.nations[x].alive) addRel(x, nid, -2); });
+  fx({ k: 'air', p, o: nid });
+  S.space.strikes.push({ id: uid(), o: nid, p, t: S.turn, sat: w.id });
+  if (S.space.strikes.length > 20) S.space.strikes.shift();
+  log(`☄ Орбитальный удар: ${nat(nid).name} бьёт по ${provFullName(p)} из космоса${lost ? ` (потери ${fmt(lost)})` : ''}${hit ? `, разрушено: ${hit}` : ''}.`, 'big', null);
+  chron(`☄ ${nat(nid).name}: орбитальный удар по ${provName(p)}`, nid);
+  return null;
+}
+
+// ================================================================= захват районов
+function regStrength(nid, body, rid) {
+  const base = sb(nid, body), reg = base && base.reg && base.reg[rid];
+  if (!reg) return 0;
+  return (reg.b.garrison || 0) * 10 + (reg.b.def || 0) * 4 + (reg.b.hab || 0) + 2;
+}
+function canAttackReg(nid, body, rid) {
+  const base = sb(nid, body) && ensureRegions(nid, body);
+  if (!base) return 'Здесь нет вашей базы';
+  const o = regOwner(body, rid);
+  if (!o || o === nid) return 'Этот район не принадлежит врагу';
+  if (!atWar(nid, o)) return 'Захватывать районы можно только во время войны';
+  const c = surface(body).cells[rid];
+  const from = c.nb.filter(x => base.reg[x] && base.reg[x].b.garrison);
+  if (!from.length) return 'Нужен гарнизон в соседнем районе';
+  if ((base.atk || -1) === S.turn) return 'На этом теле уже была атака в этом ходу';
+  return null;
+}
+function attackReg(nid, body, rid) {
+  const e = canAttackReg(nid, body, rid);
+  if (e) return e;
+  const base = sb(nid, body), o = regOwner(body, rid), ob = sb(o, body), c = surface(body).cells[rid];
+  base.atk = S.turn;
+  const from = c.nb.filter(x => base.reg[x] && base.reg[x].b.garrison);
+  const att = from.reduce((s, x) => s + base.reg[x].b.garrison * 10, 0) * (1 + 0.05 * tl(nid, 'inf') + 0.03 * tl(nid, 'ai')) * rnd(0.8, 1.25);
+  const def = regStrength(o, body, rid) * (1 + 0.05 * tl(o, 'inf')) * rnd(0.85, 1.2) * 1.2;
+  if (att > def) {
+    const reg = ob.reg[rid];
+    delete ob.reg[rid];
+    const nb = {};
+    for (const k in reg.b) { const v = Math.floor(reg.b[k] / 2); if (v > 0 && k !== 'garrison') nb[k] = v; }
+    base.reg[rid] = { b: nb };
+    syncBase(base); syncBase(ob);
+    if (!Object.keys(ob.reg).length) { delete S.space.n[o].bases[body]; log(`🏳 ${nat(o).name} потеряла базу «${BODIES[body].name}».`, 'big', null); }
+    const g = base.reg[from[0]].b; g.garrison = Math.max(0, g.garrison - (Math.random() < 0.4 ? 1 : 0)); if (!g.garrison) delete g.garrison; syncBase(base);
+    log(`💂 ${BODIES[body].name}: космодесант ${nat(nid).name} захватывает район «${c.name}» у ${nat(o).name}!`, 'big', null);
+    chron(`💂 ${nat(nid).name} захватывает район на теле «${BODIES[body].name}»`, nid);
+    return `Район «${c.name}» захвачен!`;
+  }
+  const g = base.reg[from[0]].b; g.garrison--; if (!g.garrison) delete g.garrison; syncBase(base);
+  if (isHuman(o)) log(`💂 ${BODIES[body].name}: наш гарнизон отбил атаку ${nat(nid).name}.`, 'good', o);
+  return `Атака отбита: гарнизон потерял уровень (сила ${Math.round(att)} против ${Math.round(def)}).`;
+}
+
+// ================================================================= космические события
+const SPACE_EVENTS = [
+  { id: 'flare', icon: '☀', title: 'Солнечная вспышка', cond: n => satsOf(n.id).length >= 3,
+    text: () => 'Обсерватории фиксируют мощную вспышку на Солнце. Через сутки поток частиц ударит по нашим спутникам.',
+    opts: [
+      { t: 'Перевести спутники в безопасный режим', h: a => `${mon(a.g)} · спутники уцелеют`, fx: (n, a) => evGold(n, -a.g) },
+      { t: 'Рискнуть', h: () => 'риск 45%: потеря двух спутников', fx: n => { if (Math.random() < 0.45) satsOf(n.id).sort(() => Math.random() - 0.5).slice(0, 2).forEach(x => { S.space.sats = S.space.sats.filter(q => q !== x); }); } },
+    ] },
+  { id: 'signal', icon: '📡', title: 'Загадочный сигнал из космоса', cond: n => satsOf(n.id, 'tele').length > 0 || hasST(n.id, 'station'),
+    text: () => 'Радиотелескоп поймал повторяющийся сигнал из глубокого космоса. Учёные спорят: пульсар или нечто большее?',
+    opts: [
+      { t: 'Бросить все силы на изучение', h: a => `+60 очков космоса · +${a.rp} очков науки`, fx: (n, a) => { SP(n.id).pts += 60; evRp(n, a.rp); } },
+      { t: 'Засекретить', h: () => 'стабильность +2, разведка +1 к сетям у соседей', fx: n => { evStab(n, 2); n.spy = n.spy || {}; neighboursOf(n.id).slice(0, 2).forEach(x => { n.spy[x] = Math.min(5, (n.spy[x] || 0) + 1); }); } },
+    ] },
+  { id: 'platinum', icon: '☄', title: 'Астероид из платины', cond: n => hasST(n.id, 'mars') || hasST(n.id, 'asteroid'),
+    text: () => 'Телескопы нашли астероид, почти целиком состоящий из платины. Он пройдёт рядом с Землёй через год.',
+    opts: [
+      { t: 'Отбуксировать к Луне', h: a => `${mon(a.g * 3)} сейчас · +${mon(a.g * 9)} и сталь +80`, fx: (n, a) => { evGold(n, a.g * 6); n.steel = (n.steel || 0) + 80; } },
+      { t: 'Продать права на добычу', h: a => `+${mon(a.g * 3)}`, fx: (n, a) => evGold(n, a.g * 3) },
+    ] },
+  { id: 'stfire', icon: '🔥', title: 'Пожар на орбитальной станции', cond: n => satsOf(n.id, 'module').length > 0,
+    text: () => 'На борту станции задымление. Экипаж просит указаний.',
+    opts: [
+      { t: 'Срочная эвакуация', h: () => 'потеря одного модуля, экипаж спасён', fx: n => { const x = satsOf(n.id, 'module')[0]; if (x) S.space.sats = S.space.sats.filter(q => q !== x); } },
+      { t: 'Тушить своими силами', h: () => '50%: героизм (+5 стабильности), иначе модуль потерян и −4', fx: n => { if (Math.random() < 0.5) evStab(n, 5); else { const x = satsOf(n.id, 'module')[0]; if (x) S.space.sats = S.space.sats.filter(q => q !== x); evStab(n, -4); } } },
+    ] },
+  { id: 'tourism', icon: '🎫', title: 'Космический туризм', cond: n => hasST(n.id, 'station') && satsOf(n.id, 'module').length > 0,
+    text: () => 'Миллиардеры готовы платить огромные деньги за неделю на нашей станции.',
+    opts: [
+      { t: 'Открыть станцию туристам', h: () => 'доход +3% на 24 хода', fx: n => addTmp(n.id, 'income', 0.03, 24, 'ev') },
+      { t: 'Станция — только для науки', h: () => '+40 очков космоса', fx: n => { SP(n.id).pts += 40; } },
+    ] },
+  { id: 'hero', icon: '👨‍🚀', title: 'Подвиг космонавтов', cond: n => hasST(n.id, 'manned'),
+    text: () => 'Экипаж вручную посадил повреждённый корабль. Вся страна следила за репортажем.',
+    opts: [
+      { t: 'Объявить национальный праздник', h: a => `${mon(a.g)} · стабильность +6`, fx: (n, a) => { evGold(n, -a.g); evStab(n, 6); } },
+      { t: 'Скромно наградить', h: () => 'стабильность +2', fx: n => evStab(n, 2) },
+    ] },
+];
+SPACE_EVENTS.forEach(e => { EVENTS.push(e); EV[e.id] = e; });
+
+// ================================================================= ход
+function space3Tick() {
+  const sp = SPACE3();
+  // зонды
+  Object.keys(sp.n).forEach(nid => {
+    const s = sp.n[nid], n = S.nations[nid];
+    if (!n || !n.alive) return;
+    s.probes = (s.probes || []).filter(p => {
+      if (--p.left > 0) return true;
+      s.survey = s.survey || {}; s.survey[p.body] = 1;
+      s.pts += 30; n.res.pts += 25;
+      if (isHuman(nid)) log(`🛰 Зонд достиг цели «${BODIES[p.body].name}»: поверхность изучена, открыты месторождения (+30 очков космоса).`, 'good', nid);
+      chron(`🛰 ${n.name}: зонд исследовал ${BODIES[p.body].name}`, nid);
+      return false;
+    });
+  });
+  // мусор
+  sp.debris = Math.max(0, sp.debris * 0.97 - 0.05);
+  const pHit = Math.min(0.03, sp.debris * 0.0005);
+  if (pHit > 0.001) sp.sats = sp.sats.filter(x => {
+    if (Math.random() >= pHit) return true;
+    sp.debris += 1;
+    if (isHuman(x.o)) log(`💥 Спутник «${SATS[x.k].name}» разбит обломками на орбите. Космический мусор опасен!`, 'bad', x.o);
+    return false;
+  });
+  // ИИ: зонды, уборка, удары, захваты
+  Object.values(S.nations).forEach(n => {
+    if (!n.ai || !n.alive || !n.major || !sp.n[n.id] || Math.random() > 0.1) return;
+    const s = sp.n[n.id];
+    const tgt = Object.keys(PROBE).find(b => hasST(n.id, PROBE[b][1]) && !surveyed(n.id, b) && !(s.probes || []).some(p => p.body === b));
+    if (tgt) { const r = bestRocket(n.id, PROBE[tgt][0]); if (r && n.gold > 600) doLaunch(n.id, r, 'probe', tgt); }
+    if (sp.debris > 25 && hasST(n.id, 'cleanup') && Math.random() < 0.3) { const r = bestRocket(n.id, 2); if (r && n.gold > 800) doLaunch(n.id, r, 'sweep'); }
+    if (strikeReady(n.id).length) {
+      const e = enemiesOf(n.id).find(x => S.nations[x]);
+      if (e) { const p = Object.values(S.armies).filter(a => a.o === e && !a.emb).sort((a, b) => mpOf(b.u) - mpOf(a.u))[0]; if (p && Math.random() < 0.5) orbStrike(n.id, p.p); }
+    }
+    for (const body in s.bases) {
+      const base = ensureRegions(n.id, body);
+      const c = surface(body).cells.find(q => !canAttackReg(n.id, body, q.id));
+      if (c && Math.random() < 0.4) attackReg(n.id, body, c.id);
+      if (enemiesOf(n.id).length && !base.q) { const rid = Object.keys(base.reg).find(r => (base.reg[r].b.garrison || 0) < 2 && !canBuildIn(n.id, body, +r, 'garrison')); if (rid !== undefined && n.gold > 500) buildIn(n.id, body, +rid, 'garrison'); }
+    }
+  });
+  // космическая победа: межзвёздный корабль и базы на 6 телах
+  if (!S.flags.spaceWin) {
+    const w = Object.keys(sp.n).find(nid => S.nations[nid] && S.nations[nid].alive && hasST(nid, 'starship') && Object.keys(sp.n[nid].bases).length >= 6);
+    if (w) {
+      S.flags.spaceWin = w;
+      log(`🌌 КОСМИЧЕСКАЯ ПОБЕДА: ${nat(w).name} — первая межзвёздная цивилизация!`, 'big', null);
+      humans().forEach(h => S.pending.push({ id: uid(), to: h, type: 'spaceVictory', from: w }));
+    }
+  }
+  // новые первенства — в хронику
+  Object.entries(sp.first || {}).forEach(([k, v]) => { const key = 'ch_' + k; if (!sp[key] && S.nations[v]) { sp[key] = 1; if (S.turn > 0) chron(`🌟 ${nat(v).name}: ${FIRSTS[k] || k} — первые в мире`, v); } });
+}
+(function () {
+  const tick0 = spaceTick;
+  spaceTick = function () { tick0.apply(this, arguments); space3Tick(); };
+})();
+
+// ================================================================= срочные заседания
+function emergencyUN(nid, k, t, t2) {
+  const un = F3().un;
+  if (un.cur) return 'Сейчас уже идёт голосование — войдите в зал';
+  const n = nat(nid);
+  if ((n.emgUN || -99) > S.turn - 12) return `Срочное заседание можно созывать раз в год (снова — ${Stats.dateOf(n.emgUN + 12)})`;
+  if (!UN_RES[k]) return 'Выберите вопрос';
+  if (UN_RES[k].tgt >= 1 && (!t || !S.nations[t])) return 'Выберите страну';
+  if (k === 'peace') { t2 = t2 || enemiesOf(t).sort((x, y) => nationPower(y) - nationPower(x))[0]; if (!t2) return 'Эта страна ни с кем не воюет'; }
+  if ((k === 'sanctions' || k === 'condemn') && t === nid) return 'Нельзя против себя';
+  const r = { k, t: t || null, t2: t2 || null, by: nid };
+  if (!unValid(r)) return 'Сейчас такую резолюцию принять нельзя';
+  const c = unCost() * 2;
+  if (n.gold < c) return `Недостаточно средств (нужно 💰${fmt(c)})`;
+  n.gold -= c; n.emgUN = S.turn;
+  un.cur = Object.assign({ id: uid(), end: S.turn + 1, votes: {}, d: dateStr(), emg: 1 }, r);
+  un.cur.kind = 'un'; un.cur.sway = {}; un.cur.spoke = {}; un.cur.lob = {}; un.cur.log = aiSpeeches(un.cur);
+  log(`🚨 ${unName()}: по требованию ${n.name} созвано СРОЧНОЕ заседание — «${resTitle(r)}».`, 'big', null);
+  humans().filter(h => h !== nid).forEach(h => S.pending.push({ id: uid(), to: h, type: 'unVote', rid: un.cur.id }));
+  return null;
+}
+function emergencyG(nid, k, t) {
+  const n = nat(nid);
+  if (!n.major) return 'Срочно созвать Совет великих держав может только великая держава';
+  if (F5().ses.some(s => !s.done && s.kind === 'g')) return 'Совет уже заседает';
+  if ((n.emgG || -99) > S.turn - 12) return 'Срочный совет можно созывать раз в год';
+  if (!G_ITEMS[k]) return 'Выберите вопрос';
+  let t2 = null;
+  if (k === 'crisis') { t = t || enemiesOf(nid)[0]; t2 = t && (enemiesOf(t).filter(x => x !== t).sort((x, y) => nationPower(y) - nationPower(x))[0]); if (!t || !t2) return 'Нет войны, которую нужно урегулировать'; }
+  const c = Math.round(80 * P().costMul);
+  if (n.gold < c) return `Недостаточно средств (нужно 💰${fmt(c)})`;
+  n.gold -= c; n.emgG = S.turn;
+  const mem = Object.values(S.nations).filter(x => x.alive && x.major).sort((a, b) => nationPower(b.id) - nationPower(a.id)).slice(0, 10).map(x => x.id);
+  humans().forEach(h => { if (nat(h).major && !mem.includes(h)) mem.push(h); });
+  const s = sesOpen('g', k, mem, nid, t, t2);
+  s.emg = 1;
+  S.pending = S.pending.filter(x => !(x.type === 'asm' && x.sid === s.id && x.to === nid));
+  return null;
+}
+
+// ================================================================= постепенное улучшение отношений
+// В мирное время отношения медленно теплеют к «нормальным» (+20); торговля, союзы, посольства и общие союзы ускоряют.
+function relDrift() {
+  const hs = humans();
+  const step = (a, b) => {
+    if (a === b || atWar(a, b) || !S.nations[a] || !S.nations[b] || !S.nations[a].alive || !S.nations[b].alive) return;
+    const k = pk(a, b), v = S.rel[k] || 0;
+    const shared = blocsOf(a).some(x => x.mem.includes(b));
+    const target = 20 + (allied(a, b) ? 30 : 0) + (hasTrade(a, b) ? 10 : 0) + (shared ? 15 : 0);
+    if (v >= target) return;
+    const emb = Math.max((S.prov[nat(a).capital] && S.prov[nat(a).capital].b.embassy) || 0, (S.prov[nat(b).capital] && S.prov[nat(b).capital].b.embassy) || 0);
+    let d = 0.4 + (hasTrade(a, b) ? 0.15 : 0) + (allied(a, b) || shared ? 0.25 : 0) + emb * 0.1;
+    if (v < -40) d *= 0.6;   // старые обиды забываются медленнее
+    S.rel[k] = Math.min(target, v + d);
+  };
+  hs.forEach(h => Object.keys(S.nations).forEach(o => step(h, o)));
+  for (const k in S.rel) { const i = k.indexOf('|'), a = k.slice(0, i), b = k.slice(i + 1); if (!hs.includes(a) && !hs.includes(b) && Math.random() < 0.5) step(a, b); }
+}
+function relTrend(a, b) {
+  if (atWar(a, b)) return 0;
+  const v = rel(a, b), shared = blocsOf(a).some(x => x.mem.includes(b));
+  const target = 20 + (allied(a, b) ? 30 : 0) + (hasTrade(a, b) ? 10 : 0) + (shared ? 15 : 0);
+  if (v >= target) return 0;
+  return (0.4 + (hasTrade(a, b) ? 0.15 : 0) + (allied(a, b) || shared ? 0.25 : 0)) * (v < -40 ? 0.6 : 1);
+}
+(function () {
+  const pre0 = features3Pre;
+  features3Pre = function () { pre0.apply(this, arguments); relDrift(); };
+})();
+
+Object.assign(CMD, {
+  orbStrike(nid, { p }) { const e = orbStrike(nid, +p); return e ? E(e) : R('☄ Орбитальный удар нанесён', 'good', { strike: 1 }); },
+  spaceAttack(nid, { body, rid }) { const r = attackReg(nid, body, +rid); return R(r, /захвачен/.test(r) ? 'good' : 'bad'); },
+  emergency(nid, { body, k, t }) {
+    const e = body === 'g' ? emergencyG(nid, k, t || null) : emergencyUN(nid, k, t || null);
+    return e ? E(e) : R('🚨 Срочное заседание созвано', 'good', { emg: body === 'g' ? (F5().ses.filter(s => !s.done && s.kind === 'g').pop() || {}).id : 'un' });
+  },
+});
+
+</script>
+<script>
+/* v11: новая техника из науки. Высокие уровни веток (и второе поколение) открывают новые образцы:
+   по три на пехоту, бронетехнику, артиллерию и авиацию, три корабля. Своя картинка на карте, окно
+   «Открыта новая техника», модернизация армий (старое вооружение меняется на новое за доплату). */
+'use strict';
+
+const NEW_UNITS = {
+  inf3: { cat: 'inf', atk: 3.0, def: 2.8, cost: 0.02, mp: 1, pts: 3.2, iconPer: 10000, size: 1, req: 4, pic: 'p-inf' },
+  inf4: { cat: 'inf', atk: 4.6, def: 4.0, cost: 0.035, mp: 1, pts: 4.5, iconPer: 10000, size: 1, req: 7, pic: 'p-exo' },
+  inf5: { cat: 'inf', atk: 7.0, def: 6.0, cost: 0.06, mp: 1, pts: 6.5, iconPer: 10000, size: 1, req: 10, pic: 'p-robot' },
+  arm3: { cat: 'arm', atk: 80, def: 75, cost: 3.4, mp: 5, pts: 3, iconPer: 100, size: 28, req: 5, pic: 'p-tank' },
+  arm4: { cat: 'arm', atk: 120, def: 105, cost: 5.2, mp: 5, pts: 4, iconPer: 100, size: 30, req: 8, pic: 'p-rail' },
+  arm5: { cat: 'arm', atk: 175, def: 150, cost: 8, mp: 4, pts: 5.5, iconPer: 100, size: 32, req: 11, pic: 'p-walker' },
+  art3: { cat: 'art', atk: 70, def: 30, cost: 2.0, mp: 6, pts: 2.6, iconPer: 100, size: 14, req: 5, pic: 'p-art' },
+  art4: { cat: 'art', atk: 105, def: 40, cost: 3.2, mp: 6, pts: 3.4, iconPer: 100, size: 15, req: 8, pic: 'p-laser' },
+  art5: { cat: 'art', atk: 150, def: 55, cost: 5, mp: 5, pts: 4.5, iconPer: 100, size: 16, req: 11, pic: 'p-laser' },
+  air3: { cat: 'air', atk: 65, def: 40, air: 1.4, cost: 2.6, mp: 2, pts: 2.5, iconPer: 100, size: 10, req: 4, pic: 'p-air' },
+  air4: { cat: 'air', atk: 100, def: 55, air: 1.8, cost: 4.2, mp: 2, pts: 3.4, iconPer: 100, size: 10, req: 7, pic: 'p-hyper' },
+  air5: { cat: 'air', atk: 140, def: 50, air: 1.2, cost: 2.4, mp: 0.5, pts: 2.6, iconPer: 100, size: 4, req: 10, pic: 'p-drone' },
+  sd: { cat: 'ship', atk: 30, def: 32, hp: 26, cost: 90, mp: 300, pts: 60, iconPer: 5, req: 5, pic: 'p-sd' },
+  sc: { cat: 'ship', atk: 70, def: 40, hp: 60, cost: 340, mp: 2500, pts: 240, iconPer: 5, req: 8, pic: 'p-sc' },
+  rg: { cat: 'ship', atk: 110, def: 90, hp: 95, cost: 420, mp: 2600, pts: 300, iconPer: 5, req: 11, pic: 'p-rg' },
+};
+const NEW_NAMES = {
+  inf3: 'Механизированная пехота', inf4: 'Пехота в экзоскелетах', inf5: 'Роботы-пехотинцы',
+  arm3: 'Танк с активной защитой', arm4: 'Танк с рельсовой пушкой', arm5: 'Боевой шагоход',
+  art3: 'Высокоточный ракетный комплекс', art4: 'Электромагнитная пушка', art5: 'Лазерная батарея',
+  air3: 'Сверхзвуковой истребитель', air4: 'Гиперзвуковой ударный самолёт', air5: 'Рой боевых дронов',
+  sd: 'Корабль-невидимка', sc: 'Подводный авианосец', rg: 'Рельсотронный линкор',
+};
+const NAMES_1914 = { inf3: 'Штурмовые батальоны', arm3: 'Танк прорыва', art3: 'Дальнобойная пушка', air3: 'Скоростной истребитель' };
+Object.assign(UNITS, NEW_UNITS);
+// в списках — по порядку силы внутри рода войск
+['inf3', 'inf4', 'inf5'].reverse().forEach(u => LAND_UNITS.splice(LAND_UNITS.indexOf('inf2') + 1, 0, u));
+['arm3', 'arm4', 'arm5'].reverse().forEach(u => LAND_UNITS.splice(LAND_UNITS.indexOf('arm2') + 1, 0, u));
+['art3', 'art4', 'art5'].reverse().forEach(u => LAND_UNITS.splice(LAND_UNITS.indexOf('art2') + 1, 0, u));
+LAND_UNITS.push('air3', 'air4', 'air5');
+['sd', 'sc', 'rg'].forEach(u => SHIP_UNITS.splice(SHIP_UNITS.indexOf('tr'), 0, u));
+Object.keys(UNIT_NAMES).forEach(p => Object.keys(NEW_NAMES).forEach(u => { UNIT_NAMES[p][u] = (p == 1914 && NAMES_1914[u]) || NEW_NAMES[u]; }));
+Object.assign(SHIP_ICON, { sd: 'p-sd', sc: 'p-sc', rg: 'p-rg' });
+
+// картинка образца (для новых — своя)
+function unitPicU(u) { const U = UNITS[u]; if (!U) return 'p-inf'; if (U.pic && U.pic !== 'p-inf' && U.pic !== 'p-tank' && U.pic !== 'p-art' && U.pic !== 'p-air') return U.pic; return unitPic(U.cat === 'ship' ? u : U.cat); }
+// лучший доступный образец рода войск
+function bestUnit(nid, cat) { const t = tiersFor(nat(nid), cat); return t.length ? t[t.length - 1] : null; }
+
+// ================================================================= модернизация
+function modernPlan(nid, armies) {
+  const n = nat(nid), plan = [];
+  let cost = 0;
+  armies.forEach(a => {
+    ['inf', 'arm', 'art', 'air'].forEach(cat => {
+      const best = bestUnit(nid, cat);
+      if (!best) return;
+      for (const k in a.u) {
+        const U = UNITS[k];
+        if (U.cat !== cat || k === best || U.req >= UNITS[best].req || !a.u[k]) continue;
+        if (k === 'inf0' && cat === 'inf' && UNITS[best].req < 2) continue;   // ополчение в пехоту — только начиная с элитных частей
+        const c = Math.max(0, UNITS[best].cost - U.cost) * a.u[k] * P().costMul;
+        plan.push({ a: a.id, from: k, to: best, n: a.u[k], c });
+        cost += c;
+      }
+    });
+  });
+  return { plan, cost, steel: Math.round(cost * 0.05) };
+}
+function modernize(nid, ids) {
+  const n = nat(nid);
+  const armies = Object.values(S.armies).filter(a => a.o === nid && !a.emb && (!ids || ids.includes(a.id)));
+  const P0 = modernPlan(nid, armies);
+  if (!P0.plan.length) return 'Нечего модернизировать: войска уже на лучшем вооружении';
+  let spent = 0, done = 0;
+  P0.plan.sort((x, y) => y.c - x.c);
+  for (const s of P0.plan) {
+    if (n.gold < s.c) continue;
+    const a = S.armies[s.a]; if (!a || !a.u[s.from]) continue;
+    n.gold -= s.c; spent += s.c;
+    a.u[s.to] = (a.u[s.to] || 0) + a.u[s.from]; delete a.u[s.from];
+    a.org = Math.min(a.org === undefined ? 1 : a.org, 0.85);   // переучивание
+    done++;
+  }
+  if (!done) return `Недостаточно средств: нужно 💰${fmt(P0.plan[P0.plan.length - 1].c)}`;
+  n.steel = Math.max(0, (n.steel || 0) - Math.round(spent * 0.05));
+  if (isHuman(nid)) log(`⬆ Модернизация армии: перевооружено подразделений ${done}, потрачено 💰${fmt(spent)}.`, 'good', nid);
+  return `⬆ Модернизация: перевооружено ${done} подразделений (−💰${fmt(spent)})`;
+}
+
+// окно «Открыта новая техника»
+(function () {
+  const td0 = techDone;
+  techDone = function (n) {
+    const b = n.res.branch, lvl = n.tech[b];
+    const r = td0.apply(this, arguments);
+    if (isHuman(n.id)) {
+      const us = LAND_UNITS.concat(SHIP_UNITS).filter(u => CAT_INFO[UNITS[u].cat].branch === b && UNITS[u].req === lvl && unitName(u));
+      if (us.length && !S.pending.some(x => x.to === n.id && x.type === 'newUnit' && x.us.join() === us.join())) S.pending.push({ id: uid(), to: n.id, type: 'newUnit', us });
+    }
+    return r;
+  };
+})();
+// ИИ: элитная пехота нового поколения и модернизация
+(function () {
+  const think0 = AI.think;
+  AI.think = function (nid) {
+    think0.call(this, nid);
+    const n = nat(nid);
+    if (n.alive && n.major && S.turn % 6 === nid.length % 6 && n.gold > 3000 * P().costMul) modernize(nid);
+  };
+})();
+
+Object.assign(CMD, {
+  modernize(nid, { ids }) { const r = modernize(nid, ids && ids.length ? ids : null); return R(r, /^⬆/.test(r) ? 'good' : 'bad'); },
+});
+
+</script>
+<script>
 /* Отрисовка карты мира (d3 + SVG): провинции, рельеф, войска, здания, эффекты */
 'use strict';
 
@@ -7955,9 +8440,9 @@ const MapView = {
     const selected0 = (d.type === 'army' && this.sel.army && d.ids.includes(this.sel.army)) || (d.type === 'fleet' && this.sel.fleet === d.id);
     if (d.type === 'army') {
       ['arm', 'inf', 'art', 'air'].forEach(cat => {
-        let c = 0, per = 1, pw = 0;
-        for (const k in d.u) if (UNITS[k].cat === cat) { c += d.u[k]; per = UNITS[k].iconPer; pw += d.u[k] * UNITS[k].atk; }
-        if (c > 0) items.push({ pic: unitPic(cat), n: Math.max(1, Math.round(c / per)), w: cat === 'inf' || cat === 'air' ? 10 : 18, h: 10, pw });
+        let c = 0, per = 1, pw = 0, best = null;
+        for (const k in d.u) if (UNITS[k].cat === cat) { c += d.u[k]; per = UNITS[k].iconPer; pw += d.u[k] * UNITS[k].atk; if (d.u[k] && (!best || UNITS[k].req > UNITS[best].req)) best = k; }
+        if (c > 0) items.push({ pic: best && typeof unitPicU === 'function' ? unitPicU(best) : unitPic(cat), n: Math.max(1, Math.round(c / per)), w: cat === 'inf' || cat === 'air' ? 10 : 18, h: 10, pw });
       });
     } else {
       SHIP_UNITS.forEach(k => { if (d.s[k]) items.push({ pic: unitPic(k), n: Math.max(1, Math.round(d.s[k] / UNITS[k].iconPer)), w: 20, h: 7, pw: d.s[k] * UNITS[k].hp }); });
@@ -8245,7 +8730,7 @@ const ICON_DEFS = `
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const icon = (id, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24"><use href="#${id}"/></svg>`;
-const unitIcon = u => `<svg class="uic" viewBox="0 0 48 24"><use href="#${unitPic(UNITS[u].cat === 'ship' ? u : UNITS[u].cat)}"/></svg>`;
+const unitIcon = u => `<svg class="uic" viewBox="0 0 48 24"><use href="#${typeof unitPicU === 'function' ? unitPicU(u) : unitPic(UNITS[u].cat === 'ship' ? u : UNITS[u].cat)}"/></svg>`;
 const bIcon = id => `<svg class="bic" viewBox="0 0 16 16"><use href="#b-${id}"/></svg>`;
 const pct = v => Math.round(v * 100) + '%';
 const sw = nid => `<span class="swatch" style="background:${nat(nid).color}"></span>`;
@@ -10352,6 +10837,7 @@ const Sound = {
       case 'bad': T(330, t, 0.15, { type: 'triangle', gain: 0.08, rel: 0.2 }); T(247, t + 0.17, 0.25, { type: 'triangle', gain: 0.08, rel: 0.4 }); break;
       case 'error': T(150, t, 0.11, { type: 'square', cut: 900, gain: 0.06, rel: 0.05 }); break;
       case 'ach': [523, 659, 784, 1046].forEach((f, i) => T(f, t + i * 0.08, 0.1, { type: 'triangle', gain: 0.09, rel: 0.5 })); [1568, 2093].forEach((f, i) => T(f, t + 0.4 + i * 0.06, 0.05, { gain: 0.04, rel: 0.6 })); break;
+      case 'launch': H(t, 2.4, { cut: 400, cutTo: 2400, gain: 0.35 }); T(60, t, 2.2, { to: 140, gain: 0.25, att: 0.3, rel: 0.6, type: 'sawtooth', cut: 500 }); break;
       case 'victory': [392, 523, 659, 784, 659, 784, 1046].forEach((f, i) => T(f, t + i * 0.16, 0.14, { type: 'sawtooth', cut: 2200, gain: 0.07, rel: 0.3 })); break;
     }
   },
@@ -10463,7 +10949,7 @@ const ACH = [
   { id: 'course', i: '🎯', n: 'Великий курс', d: 'Выполните 5 программ национального курса.', c: c => (c.n.done || []).length >= 5 },
   { id: 'wise', i: '📜', n: 'Мудрый правитель', d: 'Примите 10 решений в событиях.', c: c => c.s.ev >= 10 },
   { id: 'navy', i: '⚓', n: 'Владычица морей', d: 'Соберите флот из 60 кораблей.', c: c => Object.values(S.fleets).filter(f => f.o === c.me).reduce((s, f) => s + Object.values(f.s).reduce((a, b) => a + b, 0), 0) >= 60 },
-  { id: 'million', i: '🪖', n: 'Миллионная армия', d: 'Соберите армию в миллион солдат.', c: c => Object.values(S.armies).filter(a => a.o === c.me).reduce((s, a) => { for (const k in a.u) if (UNITS[k] && UNITS[k].cat === 'inf') s += a.u[k]; return s; }, 0) >= 1e6 },
+  { id: 'million', i: '💂', n: 'Миллионная армия', d: 'Соберите армию в миллион солдат.', c: c => Object.values(S.armies).filter(a => a.o === c.me).reduce((s, a) => { for (const k in a.u) if (UNITS[k] && UNITS[k].cat === 'inf') s += a.u[k]; return s; }, 0) >= 1e6 },
   { id: 'online', i: '🌐', n: 'Вместе веселее', d: 'Сыграйте 5 ходов в сетевой партии.', c: c => S.online && c.s.turns >= 5 },
   { id: 'e1914', i: '🎩', n: 'Великая война', d: 'Сыграйте 12 ходов в эпохе 1914 года.', c: c => S.period == 1914 && c.s.turns >= 12 },
   { id: 'e1939', i: '✈', n: 'Мировой пожар', d: 'Сыграйте 12 ходов в эпохе 1939 года.', c: c => S.period == 1939 && c.s.turns >= 12 },
@@ -12655,7 +13141,7 @@ const SpaceView = {
       if (this.sel === id || this.hover === id) { x.strokeStyle = this.sel === id ? '#e3b54b' : 'rgba(255,255,255,.6)'; x.setLineDash([3, 3]); x.beginPath(); x.arc(p.x, p.y, p.r + 17, 0, 6.29); x.stroke(); x.setLineDash([]); }
       x.font = '12px system-ui, sans-serif'; x.textAlign = 'center';
       x.fillStyle = BODIES[id] || id === 'earth' ? '#e6ebf5' : 'rgba(200,210,230,.55)';
-      x.fillText(B.name, p.x, B.around ? p.y - p.r - 7 : p.y + p.r + 16);
+      if (B.around) { x.textAlign = 'left'; x.fillText(B.name, p.x + p.r + 5, p.y + 4); x.textAlign = 'center'; } else x.fillText(B.name, p.x, p.y + p.r + 16);
     });
     // спутники и станция у Земли
     const E = this.pos.earth;
@@ -13025,6 +13511,7 @@ Object.assign(SpaceView, {
     if (this.seenLaunch === null) { this.seenLaunch = last; return; }
     L.filter(q => q.id > this.seenLaunch).forEach(q => {
       this.anims.push({ L: q, t0: performance.now() + this.anims.length * 700 });
+      if (q.o === S.player) Sound.play('launch');
       if (auto && q.o === S.player) { this.mode = 'earth'; this.autoSpin = false; this.rotTo = [-q.site[0], -q.site[1] * 0.7]; }
     });
     this.seenLaunch = last;
@@ -13673,6 +14160,359 @@ if (typeof ACH !== 'undefined') {
     { id: 'gpass', i: '👑', n: 'Голос держав', d: 'Проведите своё решение в Совете великих держав.', c: c => (c.s.gPass || 0) >= 1 },
   );
 }
+
+</script>
+<script>
+/* v10, интерфейс: зонды и уборщики, орбитальные удары (из космоса и из панели провинции), туман и ресурсы
+   на поверхности, вездеходы, захват районов, обломки и лучи на орбите, хроника, срочные заседания, рост отношений. */
+'use strict';
+
+const TERR_ICON = { ice: '❄', metal: '⛏', he3: '⚛', sea: '🛢', mount: '⛰', crater: '◯', plain: '' };
+
+(function patchUI9() {
+  // ------------------------------------------------ запуск: зонд и уборщик
+  const lh0 = SpaceView.launchHtml;
+  SpaceView.launchHtml = function () {
+    const me = S.player, L = this.launchSel;
+    let h = lh0.call(this);
+    const bodies = Object.keys(PROBE).filter(b => !surveyed(me, b));
+    const probe = `<div class="sp-card ${L.p === 'probe' ? 'on' : ''}" data-sp="lp" data-id="probe"><div class="row sp"><b>🛰 Зонд-разведчик</b><span class="chip">масса 1–2</span></div><small>Летит к телу и изучает поверхность: открывает рельеф и месторождения, +30 очков космоса, шанс посадки экспедиции +10%.</small>
+      ${L.p === 'probe' ? (bodies.length ? `<select class="input" id="lpProbe">${bodies.map(b => `<option value="${b}" ${L.body === b ? 'selected' : ''}>${BODIES[b].icon} ${BODIES[b].name} — масса ${PROBE[b][0]}${hasST(me, PROBE[b][1]) ? '' : ' 🔒 ' + STECH[PROBE[b][1]].name}</option>`).join('')}</select>` : '<small class="good">Все тела уже исследованы.</small>') : ''}</div>`;
+    const sweep = hasST(me, 'cleanup') ? `<div class="sp-card ${L.p === 'sweep' ? 'on' : ''}" data-sp="lp" data-id="sweep"><div class="row sp"><b>🧹 Уборщик мусора</b><span class="chip">масса 2</span></div><small>Снимает с орбиты до 15 обломков. Сейчас обломков: ${Math.round((S.space.debris || 0))}.</small></div>` : '';
+    h = h.replace('<h5>2. Груз</h5><div class="sp-cards">', '<h5>2. Груз</h5><div class="sp-cards">' + probe + sweep);
+    const chk = launchCheck(me, L.r, L.p, L.body, L.tgt);
+    if (chk && chk.warn) h = h.replace('<div class="sp-go"><div>', `<div class="sp-go"><div><small class="warn">⚠ ${esc(chk.warn)}</small><br>`);
+    return h;
+  };
+  // ------------------------------------------------ спутники: орбитальный удар, мусор
+  const sh0 = SpaceView.satsHtml;
+  SpaceView.satsHtml = function () {
+    const me = S.player;
+    let h = sh0.call(this);
+    const w = satsOf(me, 'weapon');
+    const deb = Math.round(S.space.debris || 0);
+    let extra = `<div class="sec"><h4>🗑 Космический мусор</h4><div class="bar"><i style="width:${Math.min(100, deb)}%;background:${deb > 40 ? 'var(--bad)' : deb > 15 ? 'var(--warn)' : 'var(--good)'}"></i></div>
+      <p class="muted" style="font-size:12px;margin:4px 0 0">Обломков на орбите: <b>${deb}</b>. Мусор снижает надёжность пусков (−${Math.min(12, deb * 0.2).toFixed(1)}%) и может разбить спутники. Он появляется после аварий и сбитых спутников и сам медленно сгорает в атмосфере.${hasST(me, 'cleanup') ? ' Запустите уборщика во вкладке «Запуск».' : ' Изучите «Очистку орбиты», чтобы убирать его.'}</p></div>`;
+    if (w.length) {
+      const ready = strikeReady(me).length;
+      const targets = [];
+      enemiesOf(me).forEach(e => provsOf(e).forEach(p => { const a = armiesIn(p).filter(x => x.o === e).reduce((s, x) => s + mpOf(x.u), 0); targets.push({ p, e, a, b: Object.values(S.prov[p].b).reduce((s, v) => s + v, 0) }); }));
+      targets.sort((x, y) => (y.a - x.a) || (y.b - x.b));
+      extra = `<div class="sec strike-box"><h4>☄ Орбитальный удар</h4><p class="muted" style="font-size:12.5px;margin:0 0 6px">Боевые платформы бьют из космоса по провинции врага: −22% войск, разрушение здания. Готово платформ: <b>${ready}</b> из ${w.length} (перезарядка 4 хода).</p>
+        ${targets.length ? `<div class="row" style="gap:6px"><select class="input sm" id="osTgt">${targets.slice(0, 80).map(t => `<option value="${t.p}">${esc(provName(t.p))} (${esc(nat(t.e).name)})${t.a ? ' — войска ' + fmt(t.a) : ''}</option>`).join('')}</select><button class="btn red sm" data-sp="ostrike" ${ready ? '' : 'disabled'}>☄ Удар</button></div>` : '<small class="muted">Удар возможен только по стране, с которой идёт война.</small>'}</div>` + extra;
+    }
+    return h.replace('<div class="sec"><h4>🌍 Спутники других стран</h4>', extra + '<div class="sec"><h4>🌍 Спутники других стран</h4>');
+  };
+  // ------------------------------------------------ программа: хроника, победа
+  const r0 = SpaceView.render;
+  SpaceView.render = function () {
+    r0.apply(this, arguments);
+    if (!this.open || !S || !S.player) return;
+    const P0 = $('#spPanel');
+    const lp = $('#lpProbe'); if (lp) { if (!PROBE[this.launchSel.body] || surveyed(S.player, this.launchSel.body)) this.launchSel.body = lp.value; lp.onchange = () => { this.launchSel.body = lp.value; this.render(); }; }
+    if (this.mode !== 'surf' && this.tab === 'prog' && P0) {
+      const me = S.player, sp = SPACE3(), s = SP(me);
+      const nb = Object.keys(s.bases).length;
+      const win = S.flags.spaceWin;
+      const sv = Object.keys(BODIES).filter(b => surveyed(me, b)).length;
+      P0.insertAdjacentHTML('beforeend', `<div class="sec"><h4>🌌 Космическая победа</h4>${win ? `<p class="goldc">Достигнута: ${esc(nat(win).name)}</p>` : `<p class="muted" style="font-size:12.5px;margin:0 0 6px">Постройте межзвёздный корабль и основайте базы на 6 небесных телах — первая межзвёздная цивилизация побеждает.</p>
+        <div class="kv" style="font-size:12.5px"><span>Межзвёздный корабль</span><span>${hasST(me, 'starship') ? '<span class="good">✔</span>' : '—'}</span><span>Базы</span><span>${nb} / 6</span><span>Исследовано зондами</span><span>${sv} / ${Object.keys(BODIES).length}</span></div>`}</div>
+        <div class="sec"><h4>📰 Хроника космоса</h4><div class="chron">${sp.chron.length ? sp.chron.slice(0, 12).map(c => `<div><span class="muted">${c.d}</span> ${c.o && S.nations[c.o] ? sw(c.o) + ' ' : ''}${esc(c.text)}</div>`).join('') : '<span class="muted">Пока тихо.</span>'}</div></div>`);
+    }
+    if (this.mode === 'surf' && P0) this.surfExtra(P0);
+  };
+  // поверхность: захват района, сила гарнизонов, туман
+  SpaceView.surfExtra = function (P0) {
+    const me = S.player, body = this.surfBody, rid = this.selReg;
+    if (!surveyed(me, body)) P0.insertAdjacentHTML('afterbegin', `<div class="sec warn" style="font-size:12.5px">🌫 Поверхность не исследована: рельеф и месторождения скрыты. Отправьте зонд (вкладка «Запуск» на экране орбиты).</div>`);
+    if (rid === null || rid === undefined) return;
+    const o = regOwner(body, rid);
+    if (!o) return;
+    const box = P0.querySelector('.sec:last-of-type');
+    const st = regStrength(o, body, rid);
+    let h = `<div class="kv" style="font-size:12.5px;margin-top:6px"><span>💂 Оборона района</span><span>${st}</span></div>`;
+    if (o !== me && atWar(me, o)) {
+      const e = canAttackReg(me, body, rid);
+      h += `<button class="btn red" data-sp="regAtk" data-id="${rid}" ${e ? 'disabled' : ''} style="width:100%;margin-top:6px">💂 Космодесант: захватить район</button>${e ? `<small class="muted">${esc(e)}</small>` : ''}`;
+    }
+    if (box) box.insertAdjacentHTML('beforeend', h);
+  };
+  const oc0 = SpaceView.onClick;
+  SpaceView.onClick = function (e) {
+    const b = e.target.closest('[data-sp]');
+    if (b) {
+      const a = b.dataset.sp, id = b.dataset.id, re = () => this.render();
+      if (a === 'lp' && (id === 'probe' || id === 'sweep')) { this.launchSel.p = id; if (id === 'probe') this.launchSel.body = Object.keys(PROBE).find(q => !surveyed(S.player, q) && hasST(S.player, PROBE[q][1])) || 'moon'; return re(); }
+      if (a === 'ostrike') { const p = $('#osTgt') && +$('#osTgt').value; if (!confirm(`Нанести орбитальный удар по ${provName(p)}? Все страны осудят применение космического оружия.`)) return; return UI.cmd('orbStrike', { p }, r => { if (r && r.strike) { this.mode = 'earth'; this.pullStrikes(true); } re(); }); }
+      if (a === 'regAtk') return UI.cmd('spaceAttack', { body: this.surfBody, rid: +id }, re);
+    }
+    return oc0.call(this, e);
+  };
+  // ------------------------------------------------ рисование: поверхность
+  const ds0 = SpaceView.drawSurf;
+  SpaceView.drawSurf = function () {
+    ds0.call(this);
+    const cv = $('#spCv'), x = cv.getContext('2d'), g = this.geom(), sg = this.surfGeom(g);
+    const body = this.surfBody, s = surface(body), P = this.surfCells(body), me = S.player;
+    const known = surveyed(me, body), time = (performance.now() - this.t0) / 1000;
+    x.save(); x.translate(sg.ox, sg.oy); x.scale(sg.k, sg.k);
+    // значки ресурсов
+    if (known) { x.font = '16px system-ui'; x.textAlign = 'center'; s.cells.forEach(c => { const ic = TERR_ICON[c.terr]; if (ic) { x.globalAlpha = 0.75; x.fillText(ic, c.x, c.y + 54); x.globalAlpha = 1; } }); }
+    // туман неизвестности
+    else {
+      s.cells.forEach((c, i) => {
+        if (regOwner(body, c.id)) return;
+        const poly = P.polys[i]; if (!poly) return;
+        x.beginPath(); poly.forEach((p, j) => (j ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1]))); x.closePath();
+        x.fillStyle = 'rgba(12,14,20,.72)'; x.fill();
+        x.font = '28px system-ui'; x.textAlign = 'center'; x.fillStyle = 'rgba(200,210,230,.25)'; x.fillText('?', c.x, c.y + 8);
+      });
+    }
+    // вездеходы между своими районами, свечение баз
+    Object.keys(S.space.n).forEach(o => {
+      const b = S.space.n[o].bases[body];
+      if (!b || !b.reg) return;
+      const col = o === me ? '#ffd779' : nat(o).color;
+      const ids = Object.keys(b.reg).map(Number);
+      ids.forEach(a => s.cells[a].nb.forEach(q => {
+        if (q < a || !b.reg[q]) return;
+        const A = s.cells[a], B = s.cells[q];
+        x.strokeStyle = 'rgba(255,255,255,.18)'; x.setLineDash([6, 6]); x.beginPath(); x.moveTo(A.x, A.y); x.lineTo(B.x, B.y); x.stroke(); x.setLineDash([]);
+        const f = (Math.sin(time * 0.6 + a * 1.7 + q) + 1) / 2;
+        x.fillStyle = col; x.fillRect(A.x + (B.x - A.x) * f - 4, A.y + (B.y - A.y) * f - 3, 8, 6);
+      }));
+      ids.forEach(a => { const c = s.cells[a]; if (!b.reg[a].b.hab) return; const r = 30 + Math.sin(time * 2 + a) * 3; const gr = x.createRadialGradient(c.x, c.y - 8, 2, c.x, c.y - 8, r); gr.addColorStop(0, o === me ? 'rgba(255,215,121,.25)' : 'rgba(255,255,255,.12)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = gr; x.beginPath(); x.arc(c.x, c.y - 8, r, 0, 6.29); x.fill(); });
+    });
+    x.restore();
+  };
+  // ------------------------------------------------ орбита: обломки и лучи ударов
+  SpaceView.strAnims = [];
+  SpaceView.pullStrikes = function (show) {
+    const L = (S.space && S.space.strikes) || [];
+    const last = L.length ? L[L.length - 1].id : 0;
+    if (this.seenStrike === undefined) { this.seenStrike = last; if (!show) return; }
+    L.filter(q => q.id > (this.seenStrike || 0)).forEach(q => this.strAnims.push({ s: q, t0: performance.now() }));
+    this.seenStrike = last;
+  };
+  const de0 = SpaceView.drawEarth;
+  SpaceView.drawEarth = function () {
+    de0.call(this);
+    this.pullStrikes(false);
+    const cv = $('#spCv'), x = cv.getContext('2d'), g = this.geom(), gl = this.globe(g), time = (performance.now() - this.t0) / 1000;
+    const deb = Math.min(400, Math.round((S.space.debris || 0) * 4));
+    for (let i = 0; i < deb; i++) {
+      const lon = (i * 137.5 + time * (6 + i % 7)) % 360 - 180, lat = Math.sin(i * 1.3) * 70, alt = 1.08 + (i % 23) / 60;
+      const p = this.proj3(lon, lat, alt, gl, g);
+      if (p.hidden) continue;
+      x.fillStyle = i % 5 ? `rgba(200,180,160,${p.z < 0 ? 0.3 : 0.85})` : `rgba(255,140,90,${p.z < 0 ? 0.3 : 0.9})`; x.fillRect(p.x - 1, p.y - 1, 2.4, 2.4);
+    }
+    const now = performance.now();
+    this.strAnims = this.strAnims.filter(a => now - a.t0 < 2600);
+    this.strAnims.forEach(a => {
+      const f = (now - a.t0) / 2600, pr = G.M.provinces[a.s.p]; if (!pr) return;
+      const tgt = this.proj3(pr.c[0], pr.c[1], 1, gl, g), src = this.proj3(pr.c[0] + 8, pr.c[1] + 6, 1.35, gl, g);
+      if (tgt.z < 0) return;
+      x.strokeStyle = `rgba(255,${120 + 100 * (1 - f)},80,${1 - f})`; x.lineWidth = 3 * (1 - f) + 1; x.beginPath(); x.moveTo(src.x, src.y); x.lineTo(tgt.x, tgt.y); x.stroke(); x.lineWidth = 1;
+      x.fillStyle = `rgba(255,200,120,${1 - f})`; x.beginPath(); x.arc(tgt.x, tgt.y, 4 + f * 18, 0, 6.29); x.fill();
+    });
+  };
+  // ------------------------------------------------ солнечная система: зонды и исследованные тела
+  const d0 = SpaceView.draw;
+  SpaceView.draw = function () {
+    d0.call(this);
+    if (this.mode !== 'sys' || !this.pos || !this.pos.earth) return;
+    const x = $('#spCv').getContext('2d'), time = (performance.now() - this.t0) / 1000, me = S.player;
+    Object.keys(S.space.n).forEach(o => (S.space.n[o].probes || []).forEach(m => {
+      const a = this.pos.earth, b = this.pos[m.body]; if (!a || !b) return;
+      const f = clamp((m.total - m.left + 0.5 + Math.sin(time) * 0.1) / m.total, 0.05, 0.95);
+      x.fillStyle = o === me ? '#9fe0ff' : 'rgba(220,230,255,.6)'; x.beginPath(); x.arc(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, 2.2, 0, 6.29); x.fill();
+      x.strokeStyle = 'rgba(160,220,255,.25)'; x.setLineDash([2, 5]); x.beginPath(); x.moveTo(a.x, a.y); x.lineTo(b.x, b.y); x.stroke(); x.setLineDash([]);
+    }));
+    x.font = '11px system-ui'; x.textAlign = 'center';
+    Object.keys(BODIES).forEach(b => { const p = this.pos[b]; if (p && surveyed(me, b) && !sb(me, b)) { x.fillStyle = 'rgba(159,224,255,.85)'; x.fillText('🔍', p.x + p.r + 8, p.y - p.r); } });
+    // комета
+    const ca = time * 0.05 % 6.28, cr = 300 + 120 * Math.cos(ca), g = this.geom();
+    const cx = g.cx + Math.cos(ca) * cr * g.k * 1.1, cy = g.cy + Math.sin(ca) * cr * g.k * 0.5;
+    const tail = x.createLinearGradient(cx, cy, cx + (cx - g.cx) * 0.12, cy + (cy - g.cy) * 0.12);
+    tail.addColorStop(0, 'rgba(200,230,255,.8)'); tail.addColorStop(1, 'rgba(200,230,255,0)');
+    x.strokeStyle = tail; x.lineWidth = 3; x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + (cx - g.cx) * 0.12, cy + (cy - g.cy) * 0.12); x.stroke(); x.lineWidth = 1;
+    x.fillStyle = '#eaf6ff'; x.beginPath(); x.arc(cx, cy, 2.5, 0, 6.29); x.fill();
+  };
+
+  // ------------------------------------------------ панель провинции: орбитальный удар с карты
+  const pp0 = UI.provPanel;
+  UI.provPanel = function (pid) {
+    let h = pp0.call(this, pid);
+    const o = S.prov[pid] && S.prov[pid].o;
+    if (o && o !== S.player && atWar(S.player, o) && satsOf(S.player, 'weapon').length) {
+      const ready = strikeReady(S.player).length;
+      h += `<div class="sec"><h4>☄ Орбитальный удар</h4><p class="muted" style="font-size:12px;margin:0 0 6px">Боевые платформы: готово ${ready} из ${satsOf(S.player, 'weapon').length}. −22% войск в провинции, разрушение здания.</p><button class="btn red sm" data-act="ostrikeMap" data-id="${pid}" ${ready ? '' : 'disabled'}>☄ Ударить из космоса</button></div>`;
+    }
+    return h;
+  };
+  // ------------------------------------------------ окно ООН: срочные заседания
+  const un0 = UI.winUN;
+  UI.winUN = function () {
+    let h = un0.call(this);
+    if (this.unTab === 'propose' && !F3().un.q.find(x => x.by === S.player)) h = h.replace('<button class="btn gold" data-act="unSend">', `<button class="btn red" data-act="emgUN" title="Заседание откроется прямо сейчас — без ожидания сессии">🚨 Созвать срочно (💰${fmt(unCost() * 2)})</button><button class="btn gold" data-act="unSend">`);
+    if (this.unTab === 'g' && nat(S.player).major) h = h.replace('<div class="sec"><h4>✍ Внести вопрос</h4>', `<div class="sec"><h4>🚨 Срочный совет</h4><p class="muted" style="font-size:12.5px;margin:0 0 6px">Созвать Совет великих держав прямо сейчас (раз в год, 💰${fmt(80 * P().costMul)}):</p><div class="un-kinds">${Object.entries(G_ITEMS).map(([k, I]) => `<button class="btn sm red" data-act="emgG" data-id="${k}">${I.icon} ${I.name}</button>`).join('')}</div></div><div class="sec"><h4>✍ Внести вопрос</h4>`);
+    return h;
+  };
+  const click0 = UI.click;
+  UI.click = function (e) {
+    const b = e.target.closest('[data-act]');
+    if (b) {
+      const act = b.dataset.act, id = b.dataset.id;
+      const go = fn => { e.preventDefault(); return fn(); };
+      if (act === 'ostrikeMap') return go(() => { if (!confirm(`Нанести орбитальный удар по ${provName(+id)}?`)) return; this.cmd('orbStrike', { p: +id }, () => this.renderSide()); });
+      if (act === 'emgUN') return go(() => { const t = $('#unTarget'); this.cmd('emergency', { body: 'un', k: this.unForm.k, t: t ? t.value : null }, r => { if (r && !r.err) { this.closeModal(); Hall.show('un'); } }); });
+      if (act === 'emgG') return go(() => this.cmd('emergency', { body: 'g', k: id }, r => { if (r && !r.err && r.emg) { this.closeModal(); Hall.show(r.emg); } }));
+    }
+    return click0.call(this, e);
+  };
+  // ------------------------------------------------ дипломатия: рост отношений
+  const card0 = UI.nationCard;
+  UI.nationCard = function (nid) {
+    let h = card0.call(this, nid);
+    if (nid === S.player) return h;
+    const tr = relTrend(S.player, nid);
+    return h.replace(/(<span>Отношения к вам<\/span><span class="(?:good|bad)">[^<]*)(<\/span>)/, `$1${tr ? ` <small class="good" title="В мирное время отношения постепенно теплеют; торговля, союзы и посольства ускоряют">↑ +${tr.toFixed(2)}/ход</small>` : atWar(S.player, nid) ? ' <small class="bad">война</small>' : ''}$2`);
+  };
+  // ------------------------------------------------ космическая победа
+  const pend0 = UI.showPending;
+  UI.showPending = function () {
+    if (!S || !S.player || !$('#modal').hidden) return;
+    const o = S.pending.find(x => x.to === S.player && !this.answering[x.id]);
+    if (o && o.type === 'spaceVictory') {
+      const me = o.from === S.player;
+      this.pendingShown = o.id;
+      this.modal(`<h2 class="goldc">🌌 ${me ? 'КОСМИЧЕСКАЯ ПОБЕДА!' : 'Космическая победа соперника'}</h2><p>${me ? 'Ваша страна построила межзвёздный корабль и освоила Солнечную систему — первая межзвёздная цивилизация в истории!' : `${sw(o.from)} <b>${esc(nat(o.from).name)}</b> первой построила межзвёздный корабль и освоила Солнечную систему.`}</p><p class="muted">Игру можно продолжить.</p><div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn gold" data-act="offer" data-id="${o.id}" data-yes="0">Продолжить</button></div>`, true);
+      Sound.play(me ? 'victory' : 'bad');
+      return;
+    }
+    return pend0.apply(this, arguments);
+  };
+})();
+
+// достижения v10
+if (typeof ACH !== 'undefined') {
+  ACH.splice(ACH.length - 1, 0,
+    { id: 'probe', i: '🛰', n: 'Первопроходец', d: 'Исследуйте небесное тело зондом.', c: c => S.space && S.space.n[c.me] && Object.keys(S.space.n[c.me].survey || {}).length > 0 },
+    { id: 'ostrike', i: '☄', n: 'Гнев небес', d: 'Нанесите орбитальный удар.', c: c => S.space && (S.space.strikes || []).some(s => s.o === c.me) },
+    { id: 'conquer', i: '💂', n: 'Звёздный десант', d: 'Захватите район на другом небесном теле.', c: c => S.space && (S.space.chron || []).some(x => x.o === c.me && x.text.includes('захватывает район')) },
+    { id: 'spacewin', i: '🌌', n: 'Межзвёздная цивилизация', d: 'Одержите космическую победу.', c: c => S.flags.spaceWin === c.me },
+  );
+}
+
+</script>
+<script>
+/* v11, интерфейс новой техники: картинки образцов, окно «Открыта новая техника», модернизация армий,
+   превью техники в окне науки. */
+'use strict';
+
+// ---------------------------------------------------------------- картинки новых образцов
+(function addUnitSymbols() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><defs>
+<linearGradient id="gExo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9aa6b2"/><stop offset="1" stop-color="#4f5a66"/></linearGradient>
+<linearGradient id="gMech" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7f8a7a"/><stop offset="1" stop-color="#3c4438"/></linearGradient>
+<linearGradient id="gJet" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5c6670"/><stop offset="1" stop-color="#c9d3dc"/></linearGradient>
+<symbol id="p-exo" viewBox="0 0 24 24"><path d="M3.5 16.5 19.5 5" stroke="#2b3138" stroke-width="1.8" stroke-linecap="round"/><rect x="17.5" y="4" width="4" height="2" rx=".6" fill="#3fd0ff"/>
+<path d="M8 6.4a4 3.4 0 0 1 8 0v1.4H8z" fill="url(#gExo)" stroke="#2a3138" stroke-width=".5"/><rect x="9" y="6.6" width="6" height="1.4" rx=".6" fill="#3fd0ff"/>
+<path d="M6.8 9.8h10.4l1 7.4H5.8z" fill="url(#gExo)" stroke="#2a3138" stroke-width=".6"/><path d="M8 11.5h8M8 13.5h8" stroke="#2f3740" stroke-width=".6"/>
+<path d="M7.4 17.2h3.6l-.3 5H7.8zM13 17.2h3.6l.4 5h-3.3z" fill="#5a6672" stroke="#2a3138" stroke-width=".4"/><rect x="5" y="10.2" width="2" height="5" rx=".8" fill="#6c7884"/><rect x="17" y="10.2" width="2" height="5" rx=".8" fill="#6c7884"/></symbol>
+<symbol id="p-robot" viewBox="0 0 24 24"><rect x="8" y="2.5" width="8" height="6" rx="1.4" fill="#c7ccd3" stroke="#3a4048" stroke-width=".6"/><rect x="9.4" y="4.6" width="5.2" height="1.6" rx=".8" fill="#ff4a3a"/>
+<rect x="6.5" y="9.4" width="11" height="8" rx="1.6" fill="#a9b0b8" stroke="#3a4048" stroke-width=".6"/><circle cx="12" cy="13.2" r="1.6" fill="#3fd0ff"/>
+<rect x="3.6" y="9.8" width="2.4" height="7.4" rx="1" fill="#8d959e"/><rect x="18" y="9.8" width="2.4" height="5" rx="1" fill="#8d959e"/><path d="M19.2 14.6h4" stroke="#2b3138" stroke-width="1.6"/>
+<rect x="7.8" y="17.4" width="3" height="5.4" rx="1" fill="#7c848d"/><rect x="13.2" y="17.4" width="3" height="5.4" rx="1" fill="#7c848d"/></symbol>
+<symbol id="p-rail" viewBox="0 0 48 24"><path d="M4 16h37l3 3-3 3H5l-3-3z" fill="#22272b"/><g fill="#56606a"><circle cx="9" cy="19" r="2.2"/><circle cx="16" cy="19" r="2.2"/><circle cx="23" cy="19" r="2.2"/><circle cx="30" cy="19" r="2.2"/><circle cx="37" cy="19" r="2.2"/></g>
+<path d="M3 16 6.5 10.5h34L46 16z" fill="url(#gMech)" stroke="#262c24" stroke-width=".6"/><path d="M12 10.5 14.5 6h13l3 4.5z" fill="#596553" stroke="#262c24" stroke-width=".6"/>
+<rect x="27" y="6.6" width="20.5" height="1.1" fill="#2c3238"/><rect x="27" y="8.6" width="20.5" height="1.1" fill="#2c3238"/><path d="M28 8.1h19" stroke="#3fd0ff" stroke-width=".9" stroke-opacity=".9"/><circle cx="47" cy="8.1" r="1.1" fill="#8ff0ff"/></symbol>
+<symbol id="p-walker" viewBox="0 0 48 24"><path d="M14 13 9 22M14 13l3 9M32 13l-4 9M32 13l5 9" stroke="#3c4438" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M9 7.5h28l3 4-3 3H9l-3-3z" fill="url(#gMech)" stroke="#262c24" stroke-width=".6"/><rect x="16" y="3.6" width="12" height="4.6" rx="1.2" fill="#5d6a55" stroke="#262c24" stroke-width=".6"/>
+<rect x="27" y="4.8" width="19" height="1.6" rx=".5" fill="#2c3238"/><rect x="18" y="5" width="3" height="1.4" fill="#ff5a3a"/><circle cx="10" cy="11" r="1.4" fill="#ffb02e"/></symbol>
+<symbol id="p-laser" viewBox="0 0 48 24"><path d="M5 16h30l3 3-3 3H6l-3-3z" fill="#262b30"/><g fill="#5b646d"><circle cx="10" cy="19" r="2.2"/><circle cx="18" cy="19" r="2.2"/><circle cx="26" cy="19" r="2.2"/><circle cx="33" cy="19" r="2.2"/></g>
+<path d="M4 16 7 11h26l4 5z" fill="url(#gMech)" stroke="#262c24" stroke-width=".6"/><path d="M16 11 22 4l4 2-4 5z" fill="#6b7685" stroke="#2c3238" stroke-width=".5"/><circle cx="23" cy="5" r="2.4" fill="#ff3b3b" stroke="#ffd0d0" stroke-width=".6"/>
+<path d="M25 4 47 1" stroke="#ff4a4a" stroke-width="1.2" stroke-opacity=".85"/></symbol>
+<symbol id="p-hyper" viewBox="0 0 24 24"><path d="M2 13.5 21 11.2l2 1.3-2 1.3z" fill="url(#gJet)" stroke="#2c3238" stroke-width=".4"/><path d="M8 12.6 4 5h3l6 7.4zM8 13 4 20h3l6-6.6z" fill="#7b8792" stroke="#2c3238" stroke-width=".4"/>
+<path d="M2 12.4 0 12.6l0 1.8 2 .2" fill="#ff8a2a"/><path d="M14 12.4h3" stroke="#3fd0ff" stroke-width=".9"/></symbol>
+<symbol id="p-drone" viewBox="0 0 24 24"><g fill="#59636e" stroke="#2a3138" stroke-width=".4"><path d="M3 9.5 9 12l-6 2.5z"/><path d="M8 4.5 12 11 6 9z"/><path d="M8 19.5 12 13 6 15z"/></g>
+<path d="M5 12 20 10.6l2.6 1.4L20 13.4z" fill="url(#gJet)" stroke="#2a3138" stroke-width=".4"/><circle cx="19" cy="12" r=".9" fill="#ff4a3a"/>
+<g opacity=".7"><path d="M14 5l2 2.4 2-.4-1.6-2.4zM14 19l2-2.4 2 .4-1.6 2.4z" fill="#6c7884"/></g></symbol>
+<symbol id="p-sd" viewBox="0 0 48 16"><path d="M2 9h42l-4 5H7z" fill="#2f3842" stroke="#151a20" stroke-width=".5"/><path d="M14 9 18 4h12l4 5z" fill="#3c4652" stroke="#151a20" stroke-width=".5"/><path d="M20 4l2-2.4h4L28 4z" fill="#4a5562"/><path d="M5 11.5h36" stroke="#5b6876" stroke-width=".5"/></symbol>
+<symbol id="p-sc" viewBox="0 0 48 16"><path d="M3 9c0-2.6 4-4 10-4h22c6 0 10 1.6 10 4s-4 4-10 4H13C7 13 3 11.6 3 9z" fill="#29313a" stroke="#12171c" stroke-width=".6"/><rect x="14" y="3.4" width="20" height="2.4" rx="1" fill="#3e4955"/><path d="M15 4.6h18" stroke="#ffd166" stroke-width=".5" stroke-dasharray="1.5 1.5"/><rect x="22" y="1.4" width="4" height="2.4" rx=".6" fill="#3e4955"/></symbol>
+<symbol id="p-rg" viewBox="0 0 48 16"><path d="M1 9h45l-4 5.5H5z" fill="url(#gHull)" stroke="#20262c" stroke-width=".5"/><path d="M12 9V5h20v4z" fill="#56616d" stroke="#20262c" stroke-width=".5"/>
+<rect x="30" y="5.6" width="17" height=".9" fill="#2c3238"/><rect x="30" y="7.2" width="17" height=".9" fill="#2c3238"/><path d="M31 6.6h16" stroke="#3fd0ff" stroke-width=".7"/><rect x="18" y="2.4" width="6" height="2.6" fill="#6b7682"/></symbol>
+</defs></svg>`;
+  const ins = () => document.body.insertAdjacentHTML('afterbegin', svg);
+  if (document.body) ins(); else window.addEventListener('DOMContentLoaded', ins);
+})();
+
+(function patchUI10() {
+  // окно «Открыта новая техника»
+  const pend0 = UI.showPending;
+  UI.showPending = function () {
+    if (!S || !S.player || !$('#modal').hidden) return;
+    const o = S.pending.find(x => x.to === S.player && !this.answering[x.id]);
+    if (o && o.type === 'newUnit') {
+      const us = o.us.filter(u => UNITS[u] && unitName(u));
+      if (!us.length) return this.answerOffer(o.id, false, true);
+      const mp = modernPlan(S.player, Object.values(S.armies).filter(a => a.o === S.player && !a.emb));
+      const cat = UNITS[us[0]].cat;
+      const card = u => { const U = UNITS[u]; return `<div class="nu-card"><svg class="nu-pic" viewBox="${cat === 'ship' ? '0 0 48 16' : cat === 'inf' || cat === 'air' ? '0 0 24 24' : '0 0 48 24'}"><use href="#${unitPicU(u)}"/></svg>
+        <div><b>${esc(unitName(u))}</b><div class="kv" style="font-size:12.5px;margin-top:4px"><span>Атака / оборона</span><span>${U.atk} / ${U.def}</span><span>Цена</span><span>💰${unitCost(u).toFixed(U.cost < 0.1 ? 4 : 1)}${cat === 'inf' ? ' за бойца' : ''}</span>${U.air ? `<span>ПВО</span><span>${U.air}</span>` : ''}</div></div></div>`; };
+      this.pendingShown = o.id;
+      this.modal(`<h2 class="goldc">🔬 Открыта новая техника!</h2><p>Учёные и конструкторы создали новый образец вооружения. Его уже можно заказывать на заводах (${esc(CAT_INFO[cat].name.toLowerCase())}: провинция → «Набор войск»).</p>${us.map(card).join('')}
+        ${cat !== 'ship' && mp.plan.length ? `<p class="muted" style="font-size:12.5px">Можно перевооружить действующие армии: старая техника меняется на лучшую доступную за доплату.</p>` : ''}
+        <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn ghost" data-act="offer" data-id="${o.id}" data-yes="0">Отлично</button>${cat !== 'ship' && mp.plan.length ? `<button class="btn gold" data-act="modernAll" data-id="${o.id}">⬆ Модернизировать армии · 💰${fmt(mp.cost)}</button>` : ''}</div>`, true);
+      Sound.play('ach');
+      return;
+    }
+    return pend0.apply(this, arguments);
+  };
+  // кнопка модернизации в панели армии и в окне «Армия»
+  const army0 = UI.armyPanel;
+  UI.armyPanel = function (id) {
+    let h = army0.call(this, id);
+    const a = S.armies[id];
+    if (a && a.o === S.player && !a.emb) {
+      const mp = modernPlan(S.player, [a]);
+      if (mp.plan.length) {
+        const list = [...new Set(mp.plan.map(p => `${unitName(p.from)} → ${unitName(p.to)}`))].join('; ');
+        h += `<div class="sec"><h4>⬆ Модернизация</h4><p class="muted" style="font-size:12px;margin:0 0 6px">${esc(list)}</p><button class="btn sm gold" data-act="modernOne" data-id="${a.id}">Перевооружить · 💰${fmt(mp.cost)}</button></div>`;
+      }
+    }
+    return h;
+  };
+  const mil0 = UI.winMilitary;
+  UI.winMilitary = function () {
+    let h = mil0.call(this);
+    const mp = modernPlan(S.player, Object.values(S.armies).filter(a => a.o === S.player && !a.emb));
+    const best = ['inf', 'arm', 'art', 'air', 'ship'].map(c => { const u = bestUnit(S.player, c); return u ? `<span class="nu-chip"><svg viewBox="${c === 'ship' ? '0 0 48 16' : c === 'inf' || c === 'air' ? '0 0 24 24' : '0 0 48 24'}"><use href="#${unitPicU(u)}"/></svg>${esc(unitName(u))}</span>` : ''; }).join('');
+    const block = `<div class="sec"><h4>🛠 Лучшее вооружение</h4><div class="nu-chips">${best}</div>${mp.plan.length ? `<div class="row sp" style="margin-top:8px"><span class="muted" style="font-size:12.5px">Устаревшее вооружение в армиях: ${mp.plan.length} подразделений.</span><button class="btn gold sm" data-act="modernAll" data-id="">⬆ Модернизировать все армии · 💰${fmt(mp.cost)}</button></div>` : '<p class="good" style="font-size:12.5px;margin:6px 0 0">Все армии на лучшем вооружении.</p>'}</div>`;
+    const i = h.indexOf('<div class="sec"><h4>Армии');
+    return i > 0 ? h.slice(0, i) + block + h.slice(i) : h + block;
+  };
+  // наука: картинки техники, которую откроет следующий уровень
+  const tech0 = UI.winTech;
+  UI.winTech = function () {
+    let h = tech0.call(this);
+    return h.replace(/Следующий уровень откроет: ([^<]*)<\/div>/g, (m, txt) => {
+      const names = txt.split(', ');
+      const pics = names.map(nm => { const u = LAND_UNITS.concat(SHIP_UNITS).find(k => unitName(k) === nm); if (!u) return ''; const c = UNITS[u].cat; return `<svg class="nu-mini" viewBox="${c === 'ship' ? '0 0 48 16' : c === 'inf' || c === 'air' ? '0 0 24 24' : '0 0 48 24'}"><use href="#${unitPicU(u)}"/></svg>`; }).join('');
+      return `Следующий уровень откроет: ${pics} ${txt}</div>`;
+    });
+  };
+  const click0 = UI.click;
+  UI.click = function (e) {
+    const b = e.target.closest('[data-act]');
+    if (b) {
+      const act = b.dataset.act, id = b.dataset.id;
+      if (act === 'modernAll') { e.preventDefault(); if (id) this.answerOffer(+id, false, true); return this.cmd('modernize', {}, () => { if (this.win === 'military') this.openWin('military'); }); }
+      if (act === 'modernOne') { e.preventDefault(); return this.cmd('modernize', { ids: [+id] }); }
+    }
+    return click0.call(this, e);
+  };
+})();
 
 </script>
 <script>
