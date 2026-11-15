@@ -651,7 +651,7 @@ const AUTH_CONFIG = {
    • браузерная версия — предлагает обновить страницу.
    В сетевой игре все участники должны быть на одной версии (см. net.js). */
 'use strict';
-const GAME_VERSION = '1.3.1';
+const GAME_VERSION = '1.3.2';
 const SITE_URL = 'https://azimkhanraev-ui.github.io/mirovaya-derzhava/';
 const SETUP_URL = 'https://github.com/azimkhanraev-ui/mirovaya-derzhava/releases/latest/download/MirovayaDerzhava-Setup.exe';
 
@@ -3036,8 +3036,9 @@ function endTurnInner() {
       // каждый уровень ракетной базы — своя линия сборки: за ход может выйти несколько боеголовок.
       // Боеголовки оплачиваются из казны; производство можно остановить (n.nukeStop).
       let made = 0;
-      while (!n.nukeStop && n.nukeProg >= 6 && n.gold >= c) { n.nukeProg -= 6; n.gold -= c; n.nukes++; made++; }
-      if (n.nukeProg >= 6) n.nukeProg = Math.min(n.nukeProg, 6 + silo * 6);   // нет денег или пауза — запас готовых корпусов ограничен
+      const lim = nukeLimit(n);
+      while (made < lim && n.nukeProg >= 6 && n.gold >= c) { n.nukeProg -= 6; n.gold -= c; n.nukes++; made++; }
+      if (n.nukeProg >= 6) n.nukeProg = Math.min(n.nukeProg, 6);   // нет денег или пауза — запас готовых корпусов ограничен
       if (made && isHuman(n.id)) log(`☢ Произведено ядерных боеголовок: ${made} (всего ${n.nukes}), потрачено 💰${fmt(made * c)}.`, 'info', n.id);
     }
     // национальный курс и командиры
@@ -3068,13 +3069,25 @@ function endTurnInner() {
 // ядерные боеголовки: уровни баз, цена и ожидаемые траты казны на следующий ход
 function siloLevels(nid) { let s = 0; provsOf(nid).forEach(id => { s += S.prov[id].b.silo || 0; }); return s; }
 function nukeCost() { return 150 * P().costMul; }
-function nukeSpend(nid) {
+// средняя скорость: боеголовок за ход при полной загрузке баз
+function nukeRate(nid) { return siloLevels(nid) * 2 * (tl(nid, 'nuke') >= 5 ? 1.5 : 1) / 6; }
+// сколько боеголовок разрешено выпустить за ход: пауза, лимит в ход, предел арсенала
+function nukeLimit(n) {
+  if (n.nukeStop) return 0;
+  let lim = n.nukeMax === undefined || n.nukeMax === null || n.nukeMax < 0 ? Infinity : n.nukeMax;
+  if (n.nukeTarget > 0) lim = Math.min(lim, Math.max(0, n.nukeTarget - n.nukes));
+  return lim;
+}
+// сколько боеголовок выйдет в следующий ход и сколько это стоит
+function nukeNext(nid) {
   const n = nat(nid), silo = siloLevels(nid);
-  if (!silo || n.nukeStop) return 0;
+  if (!silo) return { k: 0, cost: 0 };
   const prog = (n.nukeProg || 0) + silo * 2 * (tl(nid, 'nuke') >= 5 ? 1.5 : 1);
   const c = nukeCost();
-  return Math.min(Math.floor(prog / 6), Math.floor(Math.max(0, n.gold) / c)) * c;
+  const k = Math.max(0, Math.min(Math.floor(prog / 6), Math.floor(Math.max(0, n.gold) / c), nukeLimit(n)));
+  return { k, cost: k * c };
 }
+function nukeSpend(nid) { return nukeNext(nid).cost; }
 
 function revolt(nid) {
   const n = nat(nid);
@@ -4222,6 +4235,8 @@ const CMD = {
     const n = nat(nid);
     const lim = { tax: [0.05, 0.5], social: [0, 0.25], consc: [0.01, GOVS[n.gov].consMax] };
     if (k === 'imp') { n.imp = !!v; return R(v ? 'Автоимпорт сырья включён' : 'Автоимпорт сырья выключен', ''); }
+    if (k === 'nukeMax') { const x = Math.floor(+v); n.nukeMax = x < 0 || !isFinite(x) ? -1 : clamp(x, 0, 99); n.nukeStop = n.nukeMax === 0; return R(n.nukeMax === 0 ? '☢ Производство боеголовок остановлено' : n.nukeMax < 0 ? '☢ Боеголовки: сколько успеют базы' : `☢ Боеголовки: не больше ${n.nukeMax} за ход`, ''); }
+    if (k === 'nukeTarget') { n.nukeTarget = clamp(Math.floor(+v) || 0, 0, 9999); return R(n.nukeTarget ? `☢ Производство остановится, когда в арсенале будет ${n.nukeTarget}` : '☢ Предел арсенала снят', ''); }
     if (k === 'nukeStop') { n.nukeStop = !!v; return R(v ? '☢ Производство боеголовок остановлено — казна больше не тратится' : '☢ Производство боеголовок возобновлено', ''); }
     if (!lim[k]) return E('?');
     n[k] = clamp(+v, lim[k][0], lim[k][1]);
@@ -7310,7 +7325,7 @@ const UI = {
       [`⚖️ <b class="${n.stab < 30 ? 'bad' : n.stab < 50 ? 'warn' : 'good'}">${Math.round(n.stab)}%</b>`, 'Стабильность'],
       [`🔬 ${tech.icon} <b>${Math.floor(n.res.pts)}/${techCost(n.tech[n.res.branch])}</b>`, `Исследование: ${tech.name}`],
     ];
-    if (n.nukes > 0 || S.period >= 1962) stats.push([`☢️ <b>${n.nukes}</b>`, 'Ядерные боеголовки']);
+    if (n.nukes > 0 || S.period >= 1962 || siloLevels(S.player)) { const nn = nukeNext(S.player); stats.push([`☢️ <b>${n.nukes}</b>${nn.cost ? `<small class="bad">−${fmtMoney(nn.cost)}</small>` : ''}`, `Ядерные боеголовки: ${n.nukes}.${siloLevels(S.player) ? ` В следующий ход выйдет ${nn.k} шт. за 💰${fmt(nn.cost)}${n.nukeStop ? ' (производство остановлено)' : ''}. Настроить — в окне «Экономика» или «Армия».` : ''}`]); }
     if (war) stats.push([`⚔️ <b class="bad">${war}</b>`, 'Войны: ' + enemiesOf(S.player).map(x => nat(x).name).join(', ')]);
     $('#tbStats').innerHTML = stats.map(([h, t]) => `<div class="stat" title="${esc(t)}">${h}</div>`).join('');
   },
@@ -7690,6 +7705,9 @@ const UI = {
       case 'econModel': return this.cmd('econ', { m: id }, () => this.openWin('economy'));
       case 'imp': return this.cmd('set', { k: 'imp', v: id === '1' }, () => this.openWin('economy'));
       case 'nukeStop': return this.cmd('set', { k: 'nukeStop', v: id === '1' }, () => { if (this.win) this.openWin(this.win); });
+      case 'nukeMax': return this.cmd('set', { k: 'nukeMax', v: +id }, () => { if (this.win) this.openWin(this.win); });
+      case 'nukeTarget': return this.cmd('set', { k: 'nukeTarget', v: Math.max(0, (nat(S.player).nukeTarget || nat(S.player).nukes) + +id) }, () => { if (this.win) this.openWin(this.win); });
+      case 'nukeTargetOff': return this.cmd('set', { k: 'nukeTarget', v: 0 }, () => { if (this.win) this.openWin(this.win); });
       case 'gov': return this.changeGov(id);
       case 'logTab': this.logTab = id; return this.openWin('log');
       case 'focusArmy': { const x = S.armies[id]; if (x) { this.closeModal(); MapView.focus(x.p, 5); this.select({ type: 'army', id }); } return; }
@@ -7772,11 +7790,11 @@ const UI = {
           <span>Обслуживание построек</span><span class="bad">−${fmtMoney(e.bld)}</span>
           <span>Социальные расходы</span><span class="bad">−${fmtMoney(e.social)}</span>
           <span>Торговля сырьём</span><span class="${e.trade >= 0 ? 'good' : 'bad'}">${e.trade >= 0 ? '+' : '−'}${fmtMoney(Math.abs(e.trade))}</span>
-          ${siloLevels(S.player) ? `<span>Ядерные боеголовки${n.nukeStop ? ' (пауза)' : ''}</span><span class="bad">−${fmtMoney(nukeSpend(S.player))}</span>` : ''}
+          ${siloLevels(S.player) ? `<span>☢ Ядерные боеголовки${n.nukeStop ? ' (остановлено)' : ''}</span><span class="bad">−${fmtMoney(nukeSpend(S.player))}</span>` : ''}
           <span>Итого</span><span class="${e.net - nukeSpend(S.player) >= 0 ? 'good' : 'bad'}">${fmtMoney(e.net - nukeSpend(S.player))}</span>
           <span>Торговые договоры</span><span>${tradesOf(S.player)} (+${Math.min(tradesOf(S.player), 8) * 3}%)</span>
           <span>Технология «Экономика»</span><span>+${n.tech.econ * 6}%</span>
-        </div>${siloLevels(S.player) ? `<div class="row sp" style="margin-top:8px;font-size:12.5px"><span class="muted">☢ Ракетные базы (${siloLevels(S.player)} ур.) выпускают боеголовки по 💰${fmt(nukeCost())} за штуку прямо из казны.</span><button class="btn sm ${n.nukeStop ? 'gold' : 'ghost'}" data-act="nukeStop" data-id="${n.nukeStop ? 0 : 1}">${n.nukeStop ? '▶ Возобновить' : '⏸ Остановить'}</button></div>` : ''}${n.gold < 0 ? '<p class="bad">Казна в долгах: падает стабильность, войска дезертируют, армия слабеет!</p>' : ''}</div>
+        </div>${n.gold < 0 ? '<p class="bad">Казна в долгах: падает стабильность, войска дезертируют, армия слабеет!</p>' : ''}</div>
         <div class="sec"><h4>Налоги и расходы</h4>
           <label>Налоговая ставка: <b data-sl-val="tax">${pct(n.tax)}</b></label>
           <input type="range" min="0.05" max="0.5" step="0.01" value="${n.tax}" data-slider="tax">
@@ -7786,6 +7804,7 @@ const UI = {
           <div class="muted" style="font-size:12px">Повышают стабильность, рост населения и зарплаты.</div>
         </div>
       </div>
+      ${this.nukeBlock()}
       <div class="sec"><h4>Сырьё: нефть и сталь</h4><div class="cols">
         <div class="kv"><span>🛢 Запас нефти</span><span>${fmt(n.oil)}</span><span>Добыча</span><span class="good">+${r.oilProd.toFixed(1)}</span><span>Расход армии и флота</span><span class="bad">−${r.oilUse.toFixed(1)}</span>
           <span>Импорт / экспорт</span><span>${r.oilBuy ? `<span class="bad">−${r.oilBuy.toFixed(1)} (💰${fmt(r.oilBuy * RES_PRICE.oil * cm)})</span>` : r.oilSell ? `<span class="good">продажа ${r.oilSell.toFixed(1)}</span>` : '—'}</span>
@@ -7800,6 +7819,26 @@ const UI = {
       <div class="sec"><h4>Доходные провинции</h4><div style="max-height:280px;overflow:auto"><table class="t"><tr><th>Провинция</th><th class="r">Население</th><th class="r">Богатство</th><th class="r">Доход</th><th>Стройка</th></tr>
         ${mine.slice(0, 40).map(({ id, inc }) => `<tr class="click" data-act="focusProv" data-id="${id}"><td>${esc(provName(id))}</td><td class="r">${fmt(S.prov[id].pop * 1e6)}</td><td class="r">${S.prov[id].w.toFixed(1)}</td><td class="r">${fmtMoney(inc)}</td>
         <td>${S.prov[id].bq ? bIcon(S.prov[id].bq.id) + ' ' + S.prov[id].bq.left + 'х' : ''}</td></tr>`).join('')}</table></div></div>`;
+  },
+
+  // ядерная программа: сколько выпускать боеголовок и сколько это стоит
+  nukeBlock() {
+    const me = S.player, n = nat(me), silo = siloLevels(me);
+    if (!silo) return '';
+    const nn = nukeNext(me), c = nukeCost(), rate = nukeRate(me);
+    const cur = n.nukeStop ? 0 : (n.nukeMax === undefined || n.nukeMax === null || n.nukeMax < 0 ? -1 : n.nukeMax);
+    const opt = (v, t) => `<button class="btn sm ${cur === v ? 'gold' : 'ghost'}" data-act="nukeMax" data-id="${v}">${t}</button>`;
+    return `<div class="sec nuke-box"><h4>☢ Ядерные боеголовки</h4>
+      <div class="cols3"><div><div class="muted" style="font-size:12px">В арсенале</div><div class="big-num">${n.nukes}</div></div>
+        <div><div class="muted" style="font-size:12px">Выйдет в следующий ход</div><div class="big-num ${nn.k ? 'bad' : ''}">${nn.k} шт. · −${fmtMoney(nn.cost)}</div></div>
+        <div><div class="muted" style="font-size:12px">Цена одной</div><div class="big-num">💰${fmt(c)}</div></div></div>
+      <p class="muted" style="font-size:12.5px;margin:6px 0">Ракетно-ядерные базы: ${silo} ур. — могут выпускать в среднем ${rate.toFixed(1)} боеголовки за ход. Каждая оплачивается из казны в момент выпуска.</p>
+      <div class="row" style="flex-wrap:wrap;gap:6px;align-items:center"><span>Выпускать за ход:</span>${opt(0, '⏸ Стоп')}${opt(1, '1')}${opt(2, '2')}${opt(3, '3')}${opt(5, '5')}${opt(-1, 'Сколько успеют')}</div>
+      <div class="row" style="flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px"><span>Остановить, когда в арсенале:</span>
+        <button class="btn sm ghost" data-act="nukeTarget" data-id="-10">−10</button><button class="btn sm ghost" data-act="nukeTarget" data-id="-1">−1</button>
+        <b style="min-width:80px;text-align:center">${n.nukeTarget ? n.nukeTarget + ' шт.' : 'без предела'}</b>
+        <button class="btn sm ghost" data-act="nukeTarget" data-id="1">+1</button><button class="btn sm ghost" data-act="nukeTarget" data-id="10">+10</button>
+        ${n.nukeTarget ? '<button class="btn sm ghost" data-act="nukeTargetOff">✕ снять</button>' : ''}</div></div>`;
   },
 
   winPolitics() {
@@ -8218,7 +8257,8 @@ Object.assign(UI, {
   UI.winMilitary = function () {
     const h = mil0.call(this);
     const i = h.indexOf('<div class="sec"><h4>Армии');
-    return i > 0 ? h.slice(0, i) + this.cmdrTable() + h.slice(i) : h + this.cmdrTable();
+    const extra = this.cmdrTable() + this.nukeBlock();
+    return i > 0 ? h.slice(0, i) + extra + h.slice(i) : h + extra;
   };
   const click0 = UI.click;
   UI.click = function (e) {
