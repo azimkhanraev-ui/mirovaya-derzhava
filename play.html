@@ -651,7 +651,7 @@ const AUTH_CONFIG = {
    • браузерная версия — предлагает обновить страницу.
    В сетевой игре все участники должны быть на одной версии (см. net.js). */
 'use strict';
-const GAME_VERSION = '1.3.0';
+const GAME_VERSION = '1.3.1';
 const SITE_URL = 'https://azimkhanraev-ui.github.io/mirovaya-derzhava/';
 const SETUP_URL = 'https://github.com/azimkhanraev-ui/mirovaya-derzhava/releases/latest/download/MirovayaDerzhava-Setup.exe';
 
@@ -3029,16 +3029,16 @@ function endTurnInner() {
       if (n.ai) AI.pickResearch(n.id);
     } else if (lvl >= techCap(n.id)) { techDone(n); if (n.ai) AI.pickResearch(n.id); }
     // ядерные боеголовки
-    let silo = 0;
-    provsOf(n.id).forEach(id => { silo += S.prov[id].b.silo || 0; });
+    const silo = siloLevels(n.id);
     if (silo > 0) {
       n.nukeProg += silo * 2 * (tl(n.id, 'nuke') >= 5 ? 1.5 : 1);   // уровень базы — боеголовка за 3 хода (с «Разделяющимися боеголовками» — за 2)
-      const c = 150 * P().costMul;
-      // каждый уровень ракетной базы — своя линия сборки: за ход может выйти несколько боеголовок
+      const c = nukeCost();
+      // каждый уровень ракетной базы — своя линия сборки: за ход может выйти несколько боеголовок.
+      // Боеголовки оплачиваются из казны; производство можно остановить (n.nukeStop).
       let made = 0;
-      while (n.nukeProg >= 6 && n.gold >= c) { n.nukeProg -= 6; n.gold -= c; n.nukes++; made++; }
-      if (n.nukeProg >= 6) n.nukeProg = Math.min(n.nukeProg, 6 + silo * 6);   // нет денег — запас готовых корпусов ограничен
-      if (made && isHuman(n.id)) log(`☢ Произведено ядерных боеголовок: ${made} (всего ${n.nukes}).`, 'info', n.id);
+      while (!n.nukeStop && n.nukeProg >= 6 && n.gold >= c) { n.nukeProg -= 6; n.gold -= c; n.nukes++; made++; }
+      if (n.nukeProg >= 6) n.nukeProg = Math.min(n.nukeProg, 6 + silo * 6);   // нет денег или пауза — запас готовых корпусов ограничен
+      if (made && isHuman(n.id)) log(`☢ Произведено ядерных боеголовок: ${made} (всего ${n.nukes}), потрачено 💰${fmt(made * c)}.`, 'info', n.id);
     }
     // национальный курс и командиры
     programTick(n);
@@ -3063,6 +3063,17 @@ function endTurnInner() {
   S.month++;
   if (S.month > 11) { S.month = 0; S.year++; }
   checkEnd();
+}
+
+// ядерные боеголовки: уровни баз, цена и ожидаемые траты казны на следующий ход
+function siloLevels(nid) { let s = 0; provsOf(nid).forEach(id => { s += S.prov[id].b.silo || 0; }); return s; }
+function nukeCost() { return 150 * P().costMul; }
+function nukeSpend(nid) {
+  const n = nat(nid), silo = siloLevels(nid);
+  if (!silo || n.nukeStop) return 0;
+  const prog = (n.nukeProg || 0) + silo * 2 * (tl(nid, 'nuke') >= 5 ? 1.5 : 1);
+  const c = nukeCost();
+  return Math.min(Math.floor(prog / 6), Math.floor(Math.max(0, n.gold) / c)) * c;
 }
 
 function revolt(nid) {
@@ -4211,6 +4222,7 @@ const CMD = {
     const n = nat(nid);
     const lim = { tax: [0.05, 0.5], social: [0, 0.25], consc: [0.01, GOVS[n.gov].consMax] };
     if (k === 'imp') { n.imp = !!v; return R(v ? 'Автоимпорт сырья включён' : 'Автоимпорт сырья выключен', ''); }
+    if (k === 'nukeStop') { n.nukeStop = !!v; return R(v ? '☢ Производство боеголовок остановлено — казна больше не тратится' : '☢ Производство боеголовок возобновлено', ''); }
     if (!lim[k]) return E('?');
     n[k] = clamp(+v, lim[k][0], lim[k][1]);
     return R('');
@@ -7288,8 +7300,9 @@ const UI = {
     const war = enemiesOf(S.player).length;
     const tech = TECHS.find(t => t.id === n.res.branch);
     const oilNet = r.oilProd - r.oilUse, stNet = r.steelProd - r.steelUse;
+    const nsp = nukeSpend(S.player), net = live.net - nsp;
     const stats = [
-      [`💰 <b>${fmtMoney(n.gold)}</b><small class="${live.net >= 0 ? 'good' : 'bad'}">${live.net >= 0 ? '+' : ''}${fmtMoney(live.net)}</small>`, 'Казна и чистый доход за ход'],
+      [`💰 <b>${fmtMoney(n.gold)}</b><small class="${net >= 0 ? 'good' : 'bad'}">${net >= 0 ? '+' : ''}${fmtMoney(net)}</small>`, `Казна и чистый доход за ход${nsp ? ` (в том числе ядерные боеголовки −${fmtMoney(nsp)})` : ''}`],
       [`👥 <b>${fmt(live.pop * 1e6)}</b>`, 'Население'],
       [`💂 <b>${fmt(n.mp)}</b>`, 'Призывники (резерв для набора войск)'],
       [`🛢 <b class="${n.fuel < 0.98 ? 'bad' : ''}">${fmt(n.oil)}</b><small class="${oilNet >= 0 ? 'good' : 'bad'}">${oilNet >= 0 ? '+' : ''}${oilNet.toFixed(0)}</small>`, `Нефть: добыча ${r.oilProd.toFixed(1)}, расход ${r.oilUse.toFixed(1)} в ход${n.fuel < 0.98 ? ' — НЕХВАТКА ТОПЛИВА' : ''}`],
@@ -7676,6 +7689,7 @@ const UI = {
       case 'research': return this.cmd('research', { b: id }, () => this.openWin('tech'));
       case 'econModel': return this.cmd('econ', { m: id }, () => this.openWin('economy'));
       case 'imp': return this.cmd('set', { k: 'imp', v: id === '1' }, () => this.openWin('economy'));
+      case 'nukeStop': return this.cmd('set', { k: 'nukeStop', v: id === '1' }, () => { if (this.win) this.openWin(this.win); });
       case 'gov': return this.changeGov(id);
       case 'logTab': this.logTab = id; return this.openWin('log');
       case 'focusArmy': { const x = S.armies[id]; if (x) { this.closeModal(); MapView.focus(x.p, 5); this.select({ type: 'army', id }); } return; }
@@ -7758,10 +7772,11 @@ const UI = {
           <span>Обслуживание построек</span><span class="bad">−${fmtMoney(e.bld)}</span>
           <span>Социальные расходы</span><span class="bad">−${fmtMoney(e.social)}</span>
           <span>Торговля сырьём</span><span class="${e.trade >= 0 ? 'good' : 'bad'}">${e.trade >= 0 ? '+' : '−'}${fmtMoney(Math.abs(e.trade))}</span>
-          <span>Итого</span><span class="${e.net >= 0 ? 'good' : 'bad'}">${fmtMoney(e.net)}</span>
+          ${siloLevels(S.player) ? `<span>Ядерные боеголовки${n.nukeStop ? ' (пауза)' : ''}</span><span class="bad">−${fmtMoney(nukeSpend(S.player))}</span>` : ''}
+          <span>Итого</span><span class="${e.net - nukeSpend(S.player) >= 0 ? 'good' : 'bad'}">${fmtMoney(e.net - nukeSpend(S.player))}</span>
           <span>Торговые договоры</span><span>${tradesOf(S.player)} (+${Math.min(tradesOf(S.player), 8) * 3}%)</span>
           <span>Технология «Экономика»</span><span>+${n.tech.econ * 6}%</span>
-        </div>${n.gold < 0 ? '<p class="bad">Казна в долгах: падает стабильность, войска дезертируют, армия слабеет!</p>' : ''}</div>
+        </div>${siloLevels(S.player) ? `<div class="row sp" style="margin-top:8px;font-size:12.5px"><span class="muted">☢ Ракетные базы (${siloLevels(S.player)} ур.) выпускают боеголовки по 💰${fmt(nukeCost())} за штуку прямо из казны.</span><button class="btn sm ${n.nukeStop ? 'gold' : 'ghost'}" data-act="nukeStop" data-id="${n.nukeStop ? 0 : 1}">${n.nukeStop ? '▶ Возобновить' : '⏸ Остановить'}</button></div>` : ''}${n.gold < 0 ? '<p class="bad">Казна в долгах: падает стабильность, войска дезертируют, армия слабеет!</p>' : ''}</div>
         <div class="sec"><h4>Налоги и расходы</h4>
           <label>Налоговая ставка: <b data-sl-val="tax">${pct(n.tax)}</b></label>
           <input type="range" min="0.05" max="0.5" step="0.01" value="${n.tax}" data-slider="tax">
