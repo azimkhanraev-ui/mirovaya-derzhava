@@ -521,6 +521,25 @@ svg.bic { width: 16px; height: 16px; vertical-align: -3px; }
 .fr-inv { position: fixed; z-index: 95; left: 50%; top: 70px; transform: translateX(-50%); display: flex; gap: 14px; align-items: center; background: var(--panel2); border: 1px solid var(--gold); border-radius: 12px; padding: 12px 16px; box-shadow: 0 14px 40px rgba(0,0,0,.6); max-width: calc(100% - 32px); }
 @media (max-width: 900px) { .sp-panel { top: auto; left: 12px; width: auto; height: 45%; } }
 
+/* ---------- v8: космос ---------- */
+.sp-modes { display: flex; gap: 6px; flex-wrap: wrap; }
+.sp-tabs { margin-bottom: 6px; }
+.sp-cards { display: grid; gap: 6px; margin: 4px 0 8px; }
+.sp-card { border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; background: #141e2f; cursor: pointer; }
+.sp-card.on { border-color: var(--gold); background: #231f12; }
+.sp-card.off { opacity: .5; cursor: default; }
+.sp-card small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; line-height: 1.3; }
+.sp-card select { margin-top: 5px; width: 100%; }
+.sp-panel h5 { margin: 8px 0 2px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.sp-go { position: sticky; bottom: -10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0 2px; background: rgba(13,20,33,.96); }
+.sat-row { display: flex; gap: 8px; align-items: flex-start; padding: 6px; border-radius: 7px; cursor: pointer; }
+.sat-row:hover, .sat-row.on { background: #1a273c; }
+.sat-row small { display: block; color: var(--muted); font-size: 11.5px; }
+.sat-row select { margin-top: 4px; width: 100%; }
+.input.sm { padding: 3px 6px; font-size: 12px; }
+.intel { border: 1px solid #5a2a2a; border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; background: #1d1418; }
+@media (max-width: 1100px) { .sp-top { flex-wrap: wrap; } }
+
 </style>
 </head>
 <body>
@@ -651,7 +670,7 @@ const AUTH_CONFIG = {
    • браузерная версия — предлагает обновить страницу.
    В сетевой игре все участники должны быть на одной версии (см. net.js). */
 'use strict';
-const GAME_VERSION = '1.3.2';
+const GAME_VERSION = '1.4.0';
 const SITE_URL = 'https://azimkhanraev-ui.github.io/mirovaya-derzhava/';
 const SETUP_URL = 'https://github.com/azimkhanraev-ui/mirovaya-derzhava/releases/latest/download/MirovayaDerzhava-Setup.exe';
 
@@ -6115,8 +6134,9 @@ function spaceTick() {
     for (const body in s.bases) {
       const base = s.bases[body];
       if (base.q && --base.q.left <= 0) {
-        base.b[base.q.id] = (base.b[base.q.id] || 0) + 1;
-        if (isHuman(n.id)) log(`🏗 ${BODIES[body].name}: построено «${SBLD[base.q.id].name}» ур. ${base.b[base.q.id]}.`, 'good', n.id);
+        if (base.reg && base.q.rid !== undefined && base.reg[base.q.rid]) { const rb = base.reg[base.q.rid].b; rb[base.q.id] = (rb[base.q.id] || 0) + 1; syncBase(base); }
+        else base.b[base.q.id] = (base.b[base.q.id] || 0) + 1;
+        if (isHuman(n.id)) log(`🏗 ${BODIES[body].name}: построено «${SBLD[base.q.id].name}» ур. ${base.reg && base.q.rid !== undefined && base.reg[base.q.rid] ? base.reg[base.q.rid].b[base.q.id] : base.b[base.q.id]}.`, 'good', n.id);
         base.q = null;
       }
     }
@@ -6145,7 +6165,7 @@ function AI_space(n) {
   if (!n.major) return;
   const s = SP(n.id), war = enemiesOf(n.id).length > 0;
   // космодром
-  if (tl(n.id, 'rocket') >= 5 && !provsOf(n.id).some(p => S.prov[p].b.spacecenter) && Math.random() < 0.05) {
+  if (tl(n.id, 'rocket') >= 4 && !provsOf(n.id).some(p => S.prov[p].b.spacecenter) && Math.random() < 0.05) {
     const p = n.capital;
     if (S.prov[p] && !S.prov[p].bq && typeof startBuild === 'function') startBuild(n.id, p, 'spacecenter');
   }
@@ -6171,6 +6191,547 @@ Object.assign(CMD, {
   spaceRes(nid, { id }) { if (!STECH[id]) return E('Нет такой технологии'); const e = spaceSetResearch(nid, id); return e ? E(e) : R(`Космическая наука: изучаем «${STECH[id].name}»`); },
   spaceLaunch(nid, { body }) { const e = launchMission(nid, body); return e ? E(e) : R(`🚀 Экспедиция отправлена: ${BODIES[body].name}`); },
   spaceBuild(nid, { body, id }) { const e = spaceBuild(nid, body, id); return e ? E(e) : R(`Стройка на базе «${BODIES[body].name}»: ${SBLD[id].name}`); },
+});
+
+</script>
+<script>
+/* v8: большой космос. Ракеты на выбор, спутники разных типов на орбите (управляемые спутники-шпионы,
+   противоспутниковое оружие), анимация запусков, поверхность планет с районами (как провинции на Земле),
+   космические постройки на Земле, международные космические проекты. Дополняет space.js. */
+'use strict';
+
+// ================================================================= ракеты
+const ROCKETS = {
+  light: { name: 'Лёгкая ракета', icon: '🚀', pay: 1, cost: 40, rel: 0.86, tech: 'rockets', pad: 0, desc: 'Малые спутники на низкую орбиту.' },
+  medium: { name: 'Средняя ракета', icon: '🚀', pay: 2, cost: 75, rel: 0.9, tech: 'manned', pad: 0, desc: 'Спутники связи, телескопы, пилотируемые корабли.' },
+  heavy: { name: 'Тяжёлая ракета', icon: '🚀', pay: 4, cost: 150, rel: 0.92, tech: 'station', pad: 1, desc: 'Модули станций, боевые платформы, полёт на Луну. Нужен стартовый комплекс.' },
+  reuse: { name: 'Многоразовая ракета', icon: '♻', pay: 3, cost: 55, rel: 0.96, tech: 'shuttle', pad: 1, desc: 'Дёшево и надёжно: возвращается после пуска.' },
+  superh: { name: 'Сверхтяжёлая ракета', icon: '🛸', pay: 8, cost: 300, rel: 0.94, tech: 'mars', pad: 2, desc: 'Межпланетные экспедиции. Нужен стартовый комплекс ур. 2.' },
+  fusion: { name: 'Термоядерный корабль', icon: '☀', pay: 12, cost: 380, rel: 0.98, tech: 'fusion', pad: 2, desc: 'Самый быстрый и надёжный — к любой цели в системе.' },
+};
+// спутники: pay — масса (сколько места в ракете), life — сколько ходов служит
+const SATS = {
+  comm: { name: 'Спутник связи', icon: '📡', pay: 1, cost: 30, tech: 'sat', life: 120, col: '#7fd1ff', desc: '+1% к доходу (до 5 спутников).' },
+  nav: { name: 'Навигационный спутник', icon: '📍', pay: 1, cost: 35, tech: 'gps', life: 120, col: '#9dff9d', desc: '+2% к атаке (до 3), с 3 спутников — +1 к радиусу снабжения.' },
+  spy: { name: 'Спутник-шпион', icon: '🔭', pay: 1, cost: 45, tech: 'spysat', life: 90, col: '#ff8a8a', desc: 'Наводится на страну: +1 к агентурной сети, +15% к успеху операций, разведданные о её армии.' },
+  weather: { name: 'Метеоспутник', icon: '🌦', pay: 1, cost: 25, tech: 'sat', life: 120, col: '#e8f3ff', desc: '+1 к стабильности и −5% небоевых потерь (до 3).' },
+  tele: { name: 'Космический телескоп', icon: '🔬', pay: 2, cost: 70, tech: 'station', life: 150, col: '#ffe08a', desc: '+3 очка космоса и +3% к науке (до 5).' },
+  early: { name: 'Спутник раннего предупреждения', icon: '🛰', pay: 2, cost: 80, tech: 'spysat', life: 120, col: '#ffb36b', desc: '+8% к перехвату ядерных ракет (до 4).' },
+  module: { name: 'Модуль орбитальной станции', icon: '🛸', pay: 4, cost: 140, tech: 'station', life: 300, col: '#ffd779', desc: 'Своя станция: +4% к науке, +2 очка космоса, +1 к стабильности за модуль (до 6).' },
+  weapon: { name: 'Боевая орбитальная платформа', icon: '🎯', pay: 4, cost: 220, tech: 'sdi', life: 150, col: '#ff5d5d', desc: '+12% к перехвату ядерных ракет, +3% к атаке (до 3). Может сбивать вражеские спутники.' },
+};
+// цели экспедиций: сколько нужно грузоподъёмности
+const BODY_PAY = { moon: 4, mercury: 8, venus: 8, mars: 8, phobos: 8, ceres: 8, europa: 8, ganymede: 8, titan: 8, enceladus: 12 };
+
+// ================================================================= новые небесные тела
+Object.assign(BODIES, {
+  mercury: { name: 'Меркурий', icon: '⚫', color: '#a7a19a', size: 4, orbit: 62, speed: 1.2, tech: 'venus', base: 'venus', turns: 5, cost: 500, res: 'металлы, солнечная энергия', mine: 5, steel: 5, fuel: 0, desc: 'Ближайшая к Солнцу планета: море солнечной энергии и металлов.' },
+  phobos: { name: 'Фобос', icon: '🪨', color: '#8c7b6e', size: 3, around: 'mars', orbit: 16, speed: 5, tech: 'mars', base: 'marsCol', turns: 6, cost: 380, res: 'реголит, удобная орбита', mine: 3, fuel: 2, desc: 'Маленький спутник Марса — естественная космическая станция.' },
+  ganymede: { name: 'Ганимед', icon: '🌑', color: '#b8a990', size: 5, around: 'jupiter', orbit: 44, speed: 2, tech: 'jupiter', base: 'jupiter', turns: 10, cost: 720, res: 'лёд, магнитное поле', mine: 4, fuel: 5, desc: 'Крупнейший спутник в системе, у него есть своё магнитное поле.' },
+  enceladus: { name: 'Энцелад', icon: '❄', color: '#f2f8ff', size: 3, around: 'saturn', orbit: 22, speed: 4, tech: 'titan', base: 'titan', turns: 12, cost: 850, res: 'гейзеры воды', mine: 2, fuel: 10, desc: 'Ледяной спутник Сатурна, из трещин бьют гейзеры воды.' },
+});
+delete PLANETS.mercury;
+['mercury', 'phobos', 'ganymede', 'enceladus'].forEach(b => { if (!FIRSTS[b]) FIRSTS[b] = 'база: ' + BODIES[b].name; });
+
+// ================================================================= космические постройки на Земле
+[
+  { id: 'launchpad', cat: 'pol', name: 'Стартовый комплекс', icon: '🚀', cost: 220, turns: 6, max: 3, req: { tech: { rocket: 4 }, b: { spacecenter: 1 } }, desc: 'Пуски тяжёлых ракет (ур. 1) и сверхтяжёлых (ур. 2), +1 пуск за ход за уровень. Только при космодроме.' },
+  { id: 'mcc', cat: 'pol', name: 'Центр управления полётами', icon: '🖥', cost: 160, turns: 5, max: 2, cap: true, req: { tech: { rocket: 3, elec: 2 } }, desc: 'Только в столице. Надёжность пусков +3%, +2 спутника-шпиона под управлением за уровень.' },
+  { id: 'satfab', cat: 'pol', name: 'Завод спутников', icon: '🛰', cost: 140, turns: 4, max: 3, req: { tech: { rocket: 3 }, b: { factory: 1 } }, desc: 'Спутники дешевле на 15% за уровень (до −45%).' },
+].forEach(b => { if (!BLD[b.id]) { BUILDINGS.push(b); BLD[b.id] = b; } });
+SBLD.hab.desc = '+1 место под здания в районе за уровень.';
+Object.assign(BLD.spacecenter, { req: { tech: { rocket: 4 }, b: { lab: 1 } } });
+
+// ================================================================= состояние v8
+function SPACE2() {
+  const sp = SPACE();
+  sp.sats = sp.sats || [];
+  sp.launches = sp.launches || [];
+  sp.intl = sp.intl || [];
+  if (!sp.v8) {
+    sp.v8 = true;
+    // у космических держав сразу есть космодром и спутники (исторический старт)
+    Object.keys(sp.n).forEach(nid => {
+      const n = S.nations[nid], s = sp.n[nid];
+      if (!n || !n.alive || !s.tech.sat) return;
+      const cap = n.capital;
+      if (cap !== undefined && S.prov[cap] && !bldSum(nid, 'spacecenter')) { S.prov[cap].b.spacecenter = 1; if (s.tech.station) S.prov[cap].b.launchpad = 1; G.supVer++; }
+      const kinds = ['comm', 'weather'].concat(s.tech.gps ? ['nav'] : [], s.tech.spysat ? ['spy'] : [], s.tech.station ? ['module', 'tele'] : []);
+      kinds.forEach(k => addSat(nid, k, true));
+    });
+  }
+  return sp;
+}
+const satsOf = (nid, k) => (S.space && S.space.sats ? S.space.sats.filter(x => x.o === nid && (!k || x.k === k)) : []);
+function addSat(nid, k, quiet) {
+  SPACE2();
+  const sp = S.space;
+  const x = { id: uid(), o: nid, k, t: S.turn, life: SATS[k].life, inc: Math.round(rnd(-75, 75)), ph: Math.round(rnd(0, 360)), alt: +(rnd(1.12, 1.45) + (k === 'module' ? -0.05 : 0) + (k === 'early' ? 0.25 : 0)).toFixed(3), tgt: null };
+  sp.sats.push(x);
+  if (!quiet && isHuman(nid)) log(`🛰 На орбиту выведен: ${SATS[k].name}.`, 'good', nid);
+  return x;
+}
+
+// ---------------------------------------------------------------- пуски
+function launchesPerTurn(nid) { return bldSum(nid, 'spacecenter') + bldSum(nid, 'launchpad'); }
+function padLevel(nid) { let m = 0; provsOf(nid).forEach(p => { m = Math.max(m, S.prov[p].b.launchpad || 0); }); return m; }
+function rocketOk(nid, r) {
+  const R0 = ROCKETS[r];
+  if (!R0) return 'Нет такой ракеты';
+  if (!hasST(nid, R0.tech)) return `Нужна космическая технология «${STECH[R0.tech].name}»`;
+  if (!bldSum(nid, 'spacecenter')) return 'Нужен космодром (здание в провинции)';
+  if (padLevel(nid) < R0.pad) return `Нужен стартовый комплекс ур. ${R0.pad}`;
+  return null;
+}
+function rocketCost(nid, r) { return Math.round(ROCKETS[r].cost * P().costMul * (1 - Math.min(0.5, mod(nid, 'launch')))); }
+function rocketRel(nid, r) { return Math.min(0.99, ROCKETS[r].rel + 0.03 * bldSum(nid, 'mcc') + 0.005 * tl(nid, 'ai') + 0.004 * Object.keys(SP(nid).tech).length); }
+function satCost(nid, k) { return Math.round(SATS[k].cost * P().costMul * (1 - Math.min(0.45, 0.15 * bldSum(nid, 'satfab')))); }
+function bestRocket(nid, pay) {
+  return Object.keys(ROCKETS).filter(r => !rocketOk(nid, r) && ROCKETS[r].pay >= pay).sort((a, b) => rocketCost(nid, a) - rocketCost(nid, b))[0] || null;
+}
+// payload: тип спутника, 'exp' (экспедиция к body) или 'asat' (сбить спутник tgt)
+function launchCheck(nid, r, payload, body, tgt) {
+  SPACE2();
+  const n = nat(nid), s = SP(nid);
+  const e = rocketOk(nid, r);
+  if (e) return e;
+  s.launched = s.launched && s.launched.t === S.turn ? s.launched : { t: S.turn, k: 0 };
+  if (s.launched.k >= launchesPerTurn(nid)) return `Все стартовые столы заняты в этом ходу (пусков за ход: ${launchesPerTurn(nid)})`;
+  let pay, cost = rocketCost(nid, r);
+  if (payload === 'exp') {
+    const B = BODIES[body];
+    if (!B) return 'Выберите цель';
+    if (!s.tech[B.tech]) return `Нужна космическая технология «${STECH[B.tech].name}»`;
+    if (s.bases[body]) return 'База уже построена';
+    if (s.missions.some(m => m.body === body)) return 'Экспедиция уже в пути';
+    pay = BODY_PAY[body] || 8;
+    cost += missionCost(nid, body);
+  } else if (payload === 'asat') {
+    const x = S.space.sats.find(q => q.id === tgt);
+    if (!hasST(nid, 'sdi')) return 'Нужна технология «Орбитальное оружие»';
+    if (!x) return 'Выберите спутник-цель';
+    if (x.o === nid) return 'Это ваш спутник';
+    if (!atWar(nid, x.o)) return 'Сбивать спутники можно только у страны, с которой идёт война';
+    pay = 1; cost += Math.round(60 * P().costMul);
+  } else {
+    const K = SATS[payload];
+    if (!K) return 'Выберите груз';
+    if (!hasST(nid, K.tech)) return `Нужна космическая технология «${STECH[K.tech].name}»`;
+    pay = K.pay; cost += satCost(nid, payload);
+  }
+  if (ROCKETS[r].pay < pay) return `Ракета слишком слабая: нужна грузоподъёмность ${pay}, у неё ${ROCKETS[r].pay}`;
+  if (n.gold < cost) return `Недостаточно средств (нужно 💰${fmt(cost)})`;
+  return { cost, pay };
+}
+function doLaunch(nid, r, payload, body, tgt) {
+  SPACE2();
+  const c = launchCheck(nid, r, payload, body, tgt);
+  if (typeof c === 'string') return c;
+  const n = nat(nid), s = SP(nid), sp = S.space;
+  n.gold -= c.cost;
+  s.launched.k++;
+  const ok = Math.random() < rocketRel(nid, r);
+  const L = { id: uid(), o: nid, r, p: payload, body: body || null, ok, t: S.turn, d: dateStr(), site: launchSite(nid) };
+  let msg;
+  if (!ok) {
+    msg = `💥 Авария ракеты «${ROCKETS[r].name}» — груз потерян (−💰${fmt(c.cost)}).`;
+    n.stab = Math.max(0, n.stab - 2);
+  } else if (payload === 'exp') {
+    const t = missionTurns(nid, body);
+    s.missions.push({ id: uid(), body, left: t, total: t, r });
+    msg = `🚀 Экспедиция стартовала: ${BODIES[body].name}, в пути ${t} ход.`;
+    log(`🚀 ${n.name} отправляет экспедицию: ${BODIES[body].name}.`, 'info', null);
+  } else if (payload === 'asat') {
+    const x = sp.sats.find(q => q.id === tgt);
+    L.tgt = tgt;
+    if (x && Math.random() < 0.75) { sp.sats = sp.sats.filter(q => q !== x); L.hit = 1; msg = `🎯 Спутник противника уничтожен: ${SATS[x.k].name} (${nat(x.o).name}).`; log(`🎯 ${n.name} сбивает спутник страны ${nat(x.o).name}!`, 'big', null); if (isHuman(x.o)) log(`💥 Наш спутник «${SATS[x.k].name}» сбит противоспутниковой ракетой!`, 'bad', x.o); }
+    else msg = '🎯 Промах: противоспутниковая ракета не попала.';
+  } else {
+    const x = addSat(nid, payload, true);
+    L.sat = x.id;
+    msg = `🛰 На орбите: ${SATS[payload].name}.`;
+    if (!sp.first.sat) claimFirst(nid, 'sat', 'первый искусственный спутник Земли');
+  }
+  sp.launches.push(L);
+  if (sp.launches.length > 40) sp.launches.splice(0, sp.launches.length - 40);
+  return { ok, msg };
+}
+// стартовая площадка — провинция с космодромом
+function launchSite(nid) {
+  const p = provsOf(nid).filter(x => S.prov[x].b.spacecenter).sort((a, b) => (S.prov[b].b.launchpad || 0) - (S.prov[a].b.launchpad || 0))[0];
+  const id = p !== undefined ? p : nat(nid).capital;
+  return id !== undefined && G.M.provinces[id] ? G.M.provinces[id].c : [0, 0];
+}
+
+// старые экспедиции из окна тела — через лучшую доступную ракету
+launchMission = function (nid, body, r) {
+  r = r || bestRocket(nid, BODY_PAY[body] || 8);
+  if (!r) return `Нет подходящей ракеты: нужна грузоподъёмность ${BODY_PAY[body] || 8} (${(BODY_PAY[body] || 8) > 4 ? 'сверхтяжёлая ракета' : 'тяжёлая ракета'}) и стартовый комплекс`;
+  const res = doLaunch(nid, r, 'exp', body);
+  if (typeof res === 'string') return res;
+  return res.ok ? null : res.msg;
+};
+const canLaunch0 = canLaunch;
+canLaunch = function (nid, body) {
+  const e = canLaunch0(nid, body);
+  if (e && e !== 'Недостаточно средств') return e;
+  const r = bestRocket(nid, BODY_PAY[body] || 8);
+  if (!r) return `Нужна ракета с грузоподъёмностью ${BODY_PAY[body] || 8} и стартовый комплекс`;
+  return e;
+};
+
+// ---------------------------------------------------------------- спутники: эффекты и управление
+function spyCap(nid) { return 2 + 2 * bldSum(nid, 'mcc'); }
+function spySatOn(nid, target) { return !!(S.space && S.space.sats && S.space.sats.some(x => x.o === nid && x.k === 'spy' && x.tgt === target)); }
+function satTarget(nid, id, tgt) {
+  SPACE2();
+  const x = S.space.sats.find(q => q.id === id && q.o === nid);
+  if (!x || x.k !== 'spy') return 'Это не ваш спутник-шпион';
+  if (tgt && (!S.nations[tgt] || !S.nations[tgt].alive || tgt === nid)) return 'Нет такой страны';
+  if (tgt && !x.tgt && satsOf(nid, 'spy').filter(q => q.tgt).length >= spyCap(nid)) return `ЦУП может вести только ${spyCap(nid)} спутника-шпиона одновременно — постройте ещё Центр управления полётами`;
+  x.tgt = tgt || null;
+  if (tgt) x.ph = Math.round(-(G.M.provinces[nat(tgt).capital] ? G.M.provinces[nat(tgt).capital].c[0] : 0));
+  return null;
+}
+// разведка со спутника: +1 к агентурной сети и +15% к успеху операций
+(function () {
+  const lvl0 = spyLvl;
+  spyLvl = function (nid, target) { return Math.min(5, lvl0(nid, target) + (spySatOn(nid, target) ? 1 : 0)); };
+  const ch0 = spyChance;
+  spyChance = function (nid, target, op) { return Math.min(0.95, ch0(nid, target, op) + (spySatOn(nid, target) ? 0.15 : 0)); };
+  const def0 = spaceDefense;
+  spaceDefense = function (nid) {
+    return def0(nid) + Math.min(4, satsOf(nid, 'early').length) * 0.08 + Math.min(3, satsOf(nid, 'weapon').length) * 0.12;
+  };
+})();
+function setD(n, slot, k, val) {
+  n._sp = n._sp || {}; n.mods = n.mods || {};
+  const d = val - (n._sp[slot] || 0);
+  if (d) { n.mods[k] = (n.mods[k] || 0) + d; n._sp[slot] = val; }
+}
+function satEffects(n) {
+  const c = k => satsOf(n.id, k).length;
+  const nav = Math.min(3, c('nav')), mod6 = Math.min(6, c('module'));
+  setD(n, 's_inc', 'income', Math.min(5, c('comm')) * 0.01);
+  setD(n, 's_atk', 'atk', nav * 0.02 + Math.min(3, c('weapon')) * 0.03);
+  setD(n, 's_sup', 'supply', nav >= 3 ? 1 : 0);
+  setD(n, 's_stab', 'stab', Math.min(3, c('weather')) + mod6);
+  setD(n, 's_attr', 'attr', Math.min(3, c('weather')) * 0.05);
+  setD(n, 's_res', 'research', Math.min(5, c('tele')) * 0.03 + mod6 * 0.04);
+}
+const spacePts0 = spacePts;
+spacePts = function (nid) {
+  const v = spacePts0(nid);
+  const extra = Math.min(5, satsOf(nid, 'tele').length) * 3 + Math.min(6, satsOf(nid, 'module').length) * 2 + 2 * bldSum(nid, 'launchpad') + bldSum(nid, 'mcc') * 2;
+  return v + (v > 0 || extra ? extra : 0);
+};
+
+// ================================================================= поверхность планет: районы
+const TERR = {
+  plain: { name: 'Равнина', col: '#8a8f99', slots: 4, desc: 'Удобно строить: +1 место.' },
+  crater: { name: 'Кратер', col: '#6d727c', slots: 3, desc: 'Защищён от радиации: оранжереи и жилые модули +50%.' },
+  mount: { name: 'Горы', col: '#5b5f68', slots: 2, desc: 'Мало места, но шахты +50%.' },
+  ice: { name: 'Ледник', col: '#cfe3f2', slots: 3, desc: 'Водяной лёд: топливные заводы ×2.' },
+  metal: { name: 'Рудное поле', col: '#9a7a5a', slots: 3, desc: 'Богатые руды: шахты ×2.' },
+  he3: { name: 'Залежи гелия-3', col: '#c9b27a', slots: 3, desc: 'Гелий-3: шахты ×2 (с технологией добычи ×3).' },
+  sea: { name: 'Метановое море', col: '#7a5a2a', slots: 2, desc: 'Углеводороды: топливные заводы ×3.' },
+};
+const SURF = {
+  moon: { n: 24, t: { plain: 5, crater: 5, mount: 3, ice: 1, he3: 2, metal: 1 }, base: '#7d8088' },
+  mercury: { n: 18, t: { plain: 4, crater: 5, mount: 3, metal: 3 }, base: '#6f6a64' },
+  venus: { n: 20, t: { plain: 6, mount: 2, metal: 2, crater: 1 }, base: '#b98d3e' },
+  mars: { n: 28, t: { plain: 6, crater: 3, mount: 3, ice: 2, metal: 2 }, base: '#a5502c' },
+  phobos: { n: 10, t: { plain: 2, crater: 4, metal: 1 }, base: '#6e5f53' },
+  ceres: { n: 14, t: { plain: 3, crater: 3, metal: 4, ice: 1 }, base: '#706860' },
+  europa: { n: 18, t: { ice: 8, plain: 2, crater: 2 }, base: '#b9cbd9' },
+  ganymede: { n: 20, t: { ice: 5, plain: 3, crater: 4, metal: 1 }, base: '#8e8473' },
+  titan: { n: 22, t: { plain: 4, sea: 5, mount: 2, ice: 2 }, base: '#a3772f' },
+  enceladus: { n: 12, t: { ice: 8, crater: 2 }, base: '#dfe9f2' },
+};
+const SURF_W = 1000, SURF_H = 560;
+G.surf = {};
+function seeded(str) { let h = 2166136261; for (const ch of str) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return () => { h += 0x6D2B79F5; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+// районы тела: точки, соседи, рельеф — одинаково на всех компьютерах (из названия тела)
+function surface(body) {
+  if (G.surf[body]) return G.surf[body];
+  const cfg = SURF[body] || SURF.moon, R = seeded('md-' + body);
+  let pts = [];
+  for (let i = 0; i < cfg.n; i++) pts.push([60 + R() * (SURF_W - 120), 50 + R() * (SURF_H - 100)]);
+  // равномерность: отталкивание точек
+  for (let it = 0; it < 30; it++) pts = pts.map((p, i) => { let dx = 0, dy = 0; pts.forEach((q, j) => { if (i === j) return; const ex = p[0] - q[0], ey = p[1] - q[1], d2 = ex * ex + ey * ey + 1; if (d2 < 30000) { dx += ex / d2 * 900; dy += ey / d2 * 900; } }); return [clamp(p[0] + dx, 50, SURF_W - 50), clamp(p[1] + dy, 45, SURF_H - 45)]; });
+  const terrs = [];
+  Object.entries(cfg.t).forEach(([k, w]) => { for (let i = 0; i < w; i++) terrs.push(k); });
+  const cells = pts.map((p, i) => ({ id: i, x: Math.round(p[0]), y: Math.round(p[1]), terr: terrs[Math.floor(R() * terrs.length)], nb: [] }));
+  // соседи: ближайшие точки без «перешагивания» через другие
+  cells.forEach(c => {
+    const by = cells.filter(o => o !== c).map(o => ({ o, d: Math.hypot(o.x - c.x, o.y - c.y) })).sort((a, b) => a.d - b.d);
+    by.slice(0, 6).forEach(({ o, d }) => { if (d < 260 && !c.nb.includes(o.id)) { c.nb.push(o.id); if (!o.nb.includes(c.id)) o.nb.push(c.id); } });
+  });
+  const names = ['Альфа', 'Бета', 'Гамма', 'Дельта', 'Эпсилон', 'Дзета', 'Эта', 'Тета', 'Йота', 'Каппа', 'Лямбда', 'Мю', 'Ню', 'Кси', 'Омикрон', 'Пи', 'Ро', 'Сигма', 'Тау', 'Ипсилон', 'Фи', 'Хи', 'Пси', 'Омега', 'Аврора', 'Борей', 'Вега', 'Гелиос'];
+  cells.forEach((c, i) => { c.name = `${TERR[c.terr].name} ${names[i % names.length]}`; });
+  return (G.surf[body] = { cells, cfg });
+}
+const regOwner = (body, rid) => { for (const nid in (S.space && S.space.n) || {}) { const b = S.space.n[nid].bases[body]; if (b && b.reg && b.reg[rid]) return nid; } return null; };
+// места в районе: по рельефу + жилые модули района
+function regSlots(body, rid, reg) { return TERR[surface(body).cells[rid].terr].slots + ((reg && reg.b.hab) || 0); }
+// перевод старых баз (одно общее «b») в районы
+function ensureRegions(nid, body) {
+  const base = sb(nid, body);
+  if (!base || base.reg) return base;
+  base.reg = {};
+  const rid = freeLanding(body);
+  base.reg[rid] = { b: Object.assign({}, base.b || { hab: 1 }) };
+  if (base.q && base.q.rid === undefined) base.q.rid = rid;
+  syncBase(base);
+  return base;
+}
+function freeLanding(body) {
+  const cells = surface(body).cells;
+  const free = cells.filter(c => regOwner(body, c.id) === null);
+  const good = free.filter(c => c.terr === 'plain' || c.terr === 'crater');
+  const pool = good.length ? good : free.length ? free : cells;
+  return pool[Math.floor(Math.random() * pool.length)].id;
+}
+function syncBase(base) {
+  const b = {};
+  for (const rid in base.reg) for (const k in base.reg[rid].b) b[k] = (b[k] || 0) + base.reg[rid].b[k];
+  base.b = b;
+}
+function canClaim(nid, body, rid) {
+  const base = ensureRegions(nid, body);
+  if (!base) return 'Здесь нет вашей базы';
+  const c = surface(body).cells[rid];
+  if (!c) return 'Нет такого района';
+  if (regOwner(body, rid)) return regOwner(body, rid) === nid ? 'Район уже ваш' : 'Район занят другой страной';
+  if (!c.nb.some(x => base.reg[x])) return 'Осваивать можно только районы рядом со своими';
+  if (nat(nid).gold < claimCost(nid, base)) return 'Недостаточно средств';
+  return null;
+}
+function claimCost(nid, base) { return Math.round(70 * (1 + 0.3 * Object.keys(base.reg).length) * P().costMul); }
+function claimRegion(nid, body, rid) {
+  const e = canClaim(nid, body, rid);
+  if (e) return e;
+  const base = sb(nid, body);
+  nat(nid).gold -= claimCost(nid, base);
+  base.reg[rid] = { b: {} };
+  syncBase(base);
+  return null;
+}
+// здания — по районам
+baseSlots = function (base) { return 99; };
+baseUsed = function (base) { return 0; };
+function regUsed(reg) { return Object.keys(reg.b).filter(k => reg.b[k] > 0).length; }
+function canBuildIn(nid, body, rid, id) {
+  const base = ensureRegions(nid, body), B = SBLD[id];
+  if (!base) return 'Здесь нет вашей базы';
+  if (!hasST(nid, BODIES[body].base)) return `Нужна технология «${STECH[BODIES[body].base].name}»`;
+  const reg = base.reg[rid];
+  if (!reg) return 'Это не ваш район';
+  if (!B) return 'Нет такого здания';
+  if (base.q) return 'На базе уже идёт стройка';
+  const lvl = reg.b[id] || 0;
+  if (lvl >= B.max) return 'Максимальный уровень';
+  if (B.req && !hasST(nid, B.req)) return `Нужна технология «${STECH[B.req].name}»`;
+  if (B.bodies && !B.bodies.some(x => x === body || (x === 'mars' && body === 'phobos'))) return 'На этом теле не построить';
+  if (!lvl && regUsed(reg) >= regSlots(body, rid, reg)) return 'В районе нет места — постройте жилой модуль или освойте соседний район';
+  if (nat(nid).gold < sbldCost(nid, id, lvl)) return 'Недостаточно средств';
+  return null;
+}
+function buildIn(nid, body, rid, id) {
+  const e = canBuildIn(nid, body, rid, id);
+  if (e) return e;
+  const base = sb(nid, body), lvl = base.reg[rid].b[id] || 0;
+  nat(nid).gold -= sbldCost(nid, id, lvl);
+  base.q = { id, rid, left: SBLD[id].turns + (body === 'moon' ? 0 : 1) };
+  return null;
+}
+// старый вызов (без района) — в первый подходящий район
+canSpaceBuild = function (nid, body, id) {
+  const base = ensureRegions(nid, body);
+  if (!base) return 'Здесь нет вашей базы';
+  let last = 'Нет места';
+  for (const rid in base.reg) { const e = canBuildIn(nid, body, +rid, id); if (!e) return null; last = e; }
+  return last;
+};
+spaceBuild = function (nid, body, id) {
+  const base = ensureRegions(nid, body);
+  if (!base) return 'Здесь нет вашей базы';
+  const rids = Object.keys(base.reg).map(Number).sort((a, b) => (base.reg[b].b[id] || 0) - (base.reg[a].b[id] || 0));
+  for (const rid of rids) if (!canBuildIn(nid, body, rid, id)) return buildIn(nid, body, rid, id);
+  return canSpaceBuild(nid, body, id);
+};
+baseYield = function (nid, body) {
+  const base = ensureRegions(nid, body), B = BODIES[body];
+  const out = { gold: 0, sci: 0, sp: 0, steel: 0, oil: 0, stab: 0, inc: 0 };
+  if (!base) return out;
+  const cm = P().costMul, k = (1 + mod(nid, 'spaceInc')) * (/^(mars|phobos)$/.test(body) && hasST(nid, 'terraform') ? 1.5 : 1);
+  const cells = surface(body).cells;
+  for (const rid in base.reg) {
+    const b = base.reg[rid].b, t = cells[rid] ? cells[rid].terr : 'plain';
+    let mine = (b.mine || 0) * B.mine * (1 + 0.2 * (b.solar || 0));
+    if (t === 'mount') mine *= 1.5;
+    if (t === 'metal') mine *= 2;
+    if (t === 'he3') mine *= hasST(nid, 'he3') ? 3 : 2;
+    else if (body === 'moon' && hasST(nid, 'he3')) mine *= 1.5;
+    const fuelK = t === 'ice' ? 2 : t === 'sea' ? 3 : 1;
+    const shel = t === 'crater' ? 1.5 : 1;
+    out.gold += (mine + (b.dome || 0) * 6) * cm * k;
+    out.sci += (b.lab || 0) * 4;
+    out.sp += (b.lab || 0) * 3 + (b.tele || 0) * 4;
+    out.steel += (b.mine || 0) * (B.steel || 0) * k * (t === 'metal' ? 2 : 1);
+    out.oil += (b.fuel || 0) * ((B.fuel || 0) + (B.oil || 0)) * fuelK;
+    out.stab += ((b.farm || 0) * shel + (b.dome || 0)) ;
+    out.inc += (b.solar || 0) * 0.01;
+  }
+  out.stab = Math.round(out.stab);
+  return out;
+};
+
+// ================================================================= международные космические проекты
+const INTL = {
+  telescope: { name: 'Большой космический телескоп', icon: '🔭', goal: 4000, tech: 'sat', desc: 'Участникам: +5 очков космоса, +3% к науке.' },
+  iss: { name: 'Международная космическая станция', icon: '🛸', goal: 9000, tech: 'station', desc: 'Участникам: +6% к науке, +4 очка космоса, +2 стабильности.' },
+  shield: { name: 'Защита Земли от астероидов', icon: '☄', goal: 7000, tech: 'sdi', desc: 'Участникам: +4 стабильности, весь мир уважает (+5 к отношениям).' },
+  moonvil: { name: 'Международная лунная деревня', icon: '🌙', goal: 14000, tech: 'lunarBase', desc: 'Участникам: +3% к доходу, +3 стабильности, бесплатный район на Луне (если есть база).' },
+  marsx: { name: 'Международная экспедиция на Марс', icon: '🔴', goal: 18000, tech: 'mars', desc: 'Участникам: +6 очков космоса, +4% к науке, +3 стабильности.' },
+};
+const INTL_RATES = [0.02, 0.05, 0.1];
+function intlFound(nid, k) {
+  const P0 = INTL[k], sp = SPACE2();
+  if (!P0) return 'Нет такого проекта';
+  if (!hasST(nid, P0.tech)) return `Нужна космическая технология «${STECH[P0.tech].name}»`;
+  if (sp.intl.some(x => x.k === k && !x.done)) return 'Такой проект уже идёт — вступите в него';
+  if (sp.intl.some(x => x.k === k && x.done && x.m[nid])) return 'Вы уже участвовали в этом проекте';
+  const c = Math.round(P0.goal * 0.1 * P().costMul);
+  if (nat(nid).gold < c) return `Недостаточно средств (взнос основателя 💰${fmt(c)})`;
+  nat(nid).gold -= c;
+  const x = { id: uid(), k, by: nid, m: {}, prog: c, goal: Math.round(P0.goal * P().costMul), done: false, t: S.turn };
+  x.m[nid] = { r: 0.05, paid: c };
+  sp.intl.push(x);
+  log(`🤝 ${nat(nid).name} основывает международный проект «${P0.name}». Приглашаются все космические державы.`, 'big', null);
+  return null;
+}
+function intlJoin(nid, id, rate) {
+  const x = SPACE2().intl.find(q => q.id === id);
+  if (!x || x.done) return 'Проект не найден или завершён';
+  rate = +rate;
+  if (rate > 0 && !INTL_RATES.includes(rate)) return 'Неверный взнос';
+  if (rate > 0 && !hasST(nid, 'rockets')) return 'Нужна своя космическая программа (технология «Ракетные двигатели»)';
+  if (rate <= 0) { if (x.m[nid]) { x.m[nid].r = 0; } return null; }
+  x.m[nid] = x.m[nid] || { r: rate, paid: 0 };
+  x.m[nid].r = rate;
+  return null;
+}
+function intlTick() {
+  const sp = SPACE2();
+  sp.intl.forEach(x => {
+    if (x.done) return;
+    for (const nid in x.m) {
+      const n = S.nations[nid], M = x.m[nid];
+      if (!n || !n.alive || !M.r) continue;
+      const pay = Math.max(0, Math.min(n.gold, (n.last.gross || 0) * M.r));
+      n.gold -= pay; M.paid += pay; x.prog += pay + spacePts(nid) * 0.5;
+    }
+    if (x.prog >= x.goal) finishIntl(x);
+  });
+  // ИИ вступает в проекты и основывает свои
+  Object.values(S.nations).forEach(n => {
+    if (!n.ai || !n.alive || !n.major || !hasST(n.id, 'rockets') || Math.random() > 0.08) return;
+    const open = sp.intl.find(x => !x.done && !x.m[n.id] && hasST(n.id, INTL[x.k].tech) && rel(n.id, x.by) > -10 && !atWar(n.id, x.by));
+    if (open) { intlJoin(n.id, open.id, INTL_RATES[Math.floor(Math.random() * 2)]); log(`🤝 ${n.name} присоединяется к проекту «${INTL[open.k].name}».`, 'info', null); if (isHuman(open.by)) log(`🤝 ${n.name} вступила в ваш проект «${INTL[open.k].name}».`, 'good', open.by); return; }
+    if (Math.random() < 0.15) { const k = Object.keys(INTL).find(q => hasST(n.id, INTL[q].tech) && !sp.intl.some(x => x.k === q)); if (k && n.gold > INTL[k].goal * 0.4) intlFound(n.id, k); }
+  });
+}
+function finishIntl(x) {
+  x.done = true;
+  const P0 = INTL[x.k];
+  const mem = Object.keys(x.m).filter(nid => x.m[nid].paid > 0 && S.nations[nid] && S.nations[nid].alive);
+  mem.forEach(nid => {
+    const n = nat(nid);
+    const eff = { telescope: { space: 0, research: 0.03 }, iss: { research: 0.06, stab: 2 }, shield: { stab: 4 }, moonvil: { income: 0.03, stab: 3 }, marsx: { research: 0.04, stab: 3 } }[x.k];
+    addMods(n, eff);
+    const s = SP(nid);
+    s.bonusPts = (s.bonusPts || 0) + ({ telescope: 5, iss: 4, marsx: 6 }[x.k] || 0);
+    if (x.k === 'shield') Object.keys(S.nations).forEach(o => { if (o !== nid && S.nations[o].alive) addRel(o, nid, 5); });
+    if (x.k === 'moonvil' && s.bases.moon) { const base = ensureRegions(nid, 'moon'); const c = surface('moon').cells.find(q => !regOwner('moon', q.id) && q.nb.some(z => base.reg[z])); if (c) { base.reg[c.id] = { b: { hab: 1 } }; syncBase(base); } }
+    if (isHuman(nid)) S.pending.push({ id: uid(), to: nid, type: 'intlDone', k: x.k, n: mem.length });
+  });
+  log(`🌍 Завершён международный проект «${P0.name}»! Участники: ${mem.map(q => nat(q).name).join(', ')}.`, 'big', null);
+}
+// бонусные очки космоса от проектов
+const spacePts1 = spacePts;
+spacePts = function (nid) { const v = spacePts1(nid); const s = S.space && S.space.n[nid]; return v + ((s && s.bonusPts) || 0); };
+
+// ================================================================= ход
+function space2Tick() {
+  const sp = SPACE2();
+  // износ спутников
+  sp.sats = sp.sats.filter(x => {
+    if (!S.nations[x.o] || !S.nations[x.o].alive) return false;
+    if (S.turn - x.t < x.life) return true;
+    if (isHuman(x.o)) log(`🛰 Спутник «${SATS[x.k].name}» выработал ресурс и сошёл с орбиты. Запустите новый.`, 'warn', x.o);
+    return false;
+  });
+  sp.sats.forEach(x => { if (x.tgt && (!S.nations[x.tgt] || !S.nations[x.tgt].alive)) x.tgt = null; });
+  Object.values(S.nations).forEach(n => { if (n.alive && (n._sp || satsOf(n.id).length)) satEffects(n); });
+  // районы для новых баз
+  for (const nid in sp.n) for (const body in sp.n[nid].bases) ensureRegions(nid, body);
+  intlTick();
+  Object.values(S.nations).forEach(n => { if (n.ai && n.alive && n.major && sp.n[n.id]) AI_space2(n); });
+}
+// при высадке — район
+(function () {
+  const tick0 = spaceTick;
+  spaceTick = function () {
+    tick0.apply(this, arguments);
+    space2Tick();
+  };
+})();
+function AI_space2(n) {
+  const s = SP(n.id);
+  if (Math.random() > 0.12) return;
+  const war = enemiesOf(n.id).length > 0;
+  // спутники: связь, навигация, шпион на главного врага/соперника
+  const want = ['comm', 'nav', 'spy', 'weather', 'tele', 'early', 'module'].find(k => hasST(n.id, SATS[k].tech) && satsOf(n.id, k).length < (k === 'spy' ? 2 : k === 'module' ? 3 : 2));
+  if (want) {
+    const r = bestRocket(n.id, SATS[want].pay);
+    if (r && n.gold > (rocketCost(n.id, r) + satCost(n.id, want)) * 4) doLaunch(n.id, r, want);
+  }
+  satsOf(n.id, 'spy').forEach(x => {
+    if (x.tgt) return;
+    const t = enemiesOf(n.id)[0] || Object.values(S.nations).filter(o => o.alive && o.major && o.id !== n.id).sort((a, b) => rel(n.id, a.id) - rel(n.id, b.id))[0];
+    if (t) satTarget(n.id, x.id, t.id || t);
+  });
+  // противоспутниковое оружие
+  if (war && hasST(n.id, 'sdi') && Math.random() < 0.3) {
+    const x = S.space.sats.find(q => atWar(n.id, q.o) && (q.k === 'spy' || q.k === 'weapon'));
+    const r = bestRocket(n.id, 1);
+    if (x && r && n.gold > 600) doLaunch(n.id, r, 'asat', null, x.id);
+  }
+  // районы баз: осваивать соседние, строить
+  for (const body in s.bases) {
+    const base = ensureRegions(n.id, body);
+    if (base.q) continue;
+    const full = Object.keys(base.reg).every(rid => regUsed(base.reg[rid]) >= regSlots(body, +rid, base.reg[rid]));
+    if (full) {
+      const c = surface(body).cells.find(q => !canClaim(n.id, body, q.id));
+      if (c && n.gold > claimCost(n.id, base) * 4) claimRegion(n.id, body, c.id);
+    }
+  }
+}
+
+// ================================================================= команды
+Object.assign(CMD, {
+  spaceLaunch2(nid, { r, p, body, tgt }) {
+    const res = doLaunch(nid, r, p, body, tgt);
+    if (typeof res === 'string') return E(res);
+    return R(res.msg, res.ok ? 'good' : 'bad', { launch: true });
+  },
+  satTarget(nid, { id, tgt }) { const e = satTarget(nid, +id, tgt || null); return e ? E(e) : R(tgt ? `🔭 Спутник наведён: ${nat(tgt).name}` : 'Спутник снят с цели'); },
+  spaceClaim(nid, { body, rid }) { const e = claimRegion(nid, body, +rid); return e ? E(e) : R(`🏳 Освоен район: ${surface(body).cells[+rid].name}`); },
+  spaceBuildIn(nid, { body, rid, id }) { const e = buildIn(nid, body, +rid, id); return e ? E(e) : R(`🏗 Стройка: ${SBLD[id].name}`); },
+  intlFound(nid, { k }) { const e = intlFound(nid, k); return e ? E(e) : R(`🤝 Проект «${INTL[k].name}» основан`); },
+  intlJoin(nid, { id, rate }) { const e = intlJoin(nid, +id, rate); return e ? E(e) : R(+rate > 0 ? `🤝 Взнос: ${Math.round(rate * 100)}% дохода в ход` : 'Взносы остановлены'); },
 });
 
 </script>
@@ -7137,7 +7698,7 @@ const ICON_DEFS = `
 <symbol id="b-theater" viewBox="0 0 16 16"><path d="M2 3h6v5a3 3 0 0 1-6 0z" fill="#f0c766"/><path d="M8 6h6v5a3 3 0 0 1-6 0z" fill="#d96a6a"/><circle cx="4" cy="6" r=".7" fill="#222"/><circle cx="6" cy="6" r=".7" fill="#222"/><path d="M3.8 8.5q1.2 1 2.4 0" stroke="#222" stroke-width=".6" fill="none"/><path d="M9.8 11.8q1.2-1 2.4 0" stroke="#222" stroke-width=".6" fill="none"/></symbol>
 <symbol id="b-intel" viewBox="0 0 16 16"><path d="M2 7h12l-1.5-3h-9z" fill="#333"/><rect x="5" y="2.5" width="6" height="2" fill="#333"/><circle cx="5.5" cy="10.5" r="2.4" fill="#9cc8ff" stroke="#222" stroke-width=".8"/><circle cx="10.5" cy="10.5" r="2.4" fill="#9cc8ff" stroke="#222" stroke-width=".8"/><path d="M7.9 10.5h.2" stroke="#222" stroke-width="1"/></symbol>
 <symbol id="b-cyber" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="9" rx="1" fill="#1d2a40" stroke="#6fc3ff" stroke-width=".8"/><path d="M4 6l2 1.5L4 9M7.5 9h4" stroke="#4fe08a" stroke-width="1" fill="none"/><rect x="5.5" y="12" width="5" height="2" fill="#6d7884"/></symbol>
-<symbol id="b-spacecenter" viewBox="0 0 16 16"><path d="M8 1c2 2 2.5 5 2.2 8H5.8C5.5 6 6 3 8 1z" fill="#e8eef5"/><path d="M5.8 9 4 12h2.2zM10.2 9 12 12H9.8z" fill="#d64a4a"/><path d="M6.8 12.5 8 15l1.2-2.5z" fill="#ffb02e"/><circle cx="8" cy="5.5" r="1" fill="#4f8fe6"/></symbol>
+<symbol id="b-launchpad" viewBox="0 0 16 16"><rect x="2" y="12" width="12" height="2.5" fill="#8a96a8"/><path d="M8 1.5c1.6 1.6 2 4 1.8 6.5H6.2C6 5.5 6.4 3.1 8 1.5z" fill="#e8eef5"/><path d="M6.2 8 5 11h2zM9.8 8 11 11H9z" fill="#d64a4a"/><path d="M3 12V5h1.2v7z" fill="#5b6575"/></symbol><symbol id="b-mcc" viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="8.5" rx="1" fill="#2c3e57" stroke="#9fb4d0"/><path d="M3.5 9 6 6l2 2 3-3.5 1.5 1.5" fill="none" stroke="#5fe08a" stroke-width="1.2"/><rect x="6" y="12" width="4" height="2" fill="#9fb4d0"/></symbol><symbol id="b-satfab" viewBox="0 0 16 16"><rect x="6" y="6" width="4" height="4" fill="#d9b45a"/><rect x="1" y="6.5" width="4.2" height="3" fill="#4f8fe6"/><rect x="10.8" y="6.5" width="4.2" height="3" fill="#4f8fe6"/><path d="M8 6V3.5M8 3.5l-1.5-1M8 3.5l1.5-1" stroke="#e8eef5" stroke-width="1"/></symbol><symbol id="b-spacecenter" viewBox="0 0 16 16"><path d="M8 1c2 2 2.5 5 2.2 8H5.8C5.5 6 6 3 8 1z" fill="#e8eef5"/><path d="M5.8 9 4 12h2.2zM10.2 9 12 12H9.8z" fill="#d64a4a"/><path d="M6.8 12.5 8 15l1.2-2.5z" fill="#ffb02e"/><circle cx="8" cy="5.5" r="1" fill="#4f8fe6"/></symbol>
 <symbol id="b-refinery" viewBox="0 0 16 16"><rect x="2" y="6" width="3" height="9" fill="#8a96a3"/><rect x="6" y="3" width="3" height="12" fill="#a3aeb9"/><circle cx="12" cy="11" r="3" fill="#6d7884"/><path d="M7.5 1.5v1.5" stroke="#ff7a1a" stroke-width="1.2"/><path d="M3.5 4.5v1.5" stroke="#ff7a1a" stroke-width="1"/></symbol>
 <symbol id="b-depot" viewBox="0 0 16 16"><path d="M1.5 7 8 3l6.5 4v8h-13z" fill="#7a8a5a"/><rect x="4" y="9" width="3.5" height="3.5" fill="#c9a26a" stroke="#5a4a2a" stroke-width=".5"/><rect x="8.5" y="9" width="3.5" height="3.5" fill="#c9a26a" stroke="#5a4a2a" stroke-width=".5"/><rect x="6.2" y="5.6" width="3.5" height="3.2" fill="#b38f55" stroke="#5a4a2a" stroke-width=".5"/></symbol>
 <symbol id="b-camp" viewBox="0 0 16 16"><path d="M1.5 14 6 5l4.5 9z" fill="#5f7a45"/><path d="M8 14l3.5-7 3 7z" fill="#4a6236"/><path d="M6 5V1.5" stroke="#555" stroke-width=".8"/><path d="M6 1.5h3l-1 1 1 1H6z" fill="#d64a4a"/></symbol>
@@ -11819,6 +12380,446 @@ if (typeof ACH !== 'undefined') {
     { id: 'starship', i: '🌌', n: 'К звёздам', d: 'Постройте межзвёздный корабль.', c: c => hasST(c.me, 'starship') },
     { id: 'spacefirst', i: '🏁', n: 'Первые в космосе', d: 'Победите в любом этапе космической гонки.', c: c => S.space && Object.values(S.space.first || {}).includes(c.me) },
     { id: 'friend', i: '👥', n: 'Не один', d: 'Добавьте друга.', c: () => typeof Friends !== 'undefined' && Friends.me && Friends.me.list.some(f => f.ok) },
+  );
+}
+
+</script>
+<script>
+/* v8, интерфейс космоса: вращаемая Земля со спутниками и пусками, поверхность планет с районами,
+   окно запуска (ракета + груз), управление спутниками-шпионами, международные проекты. */
+'use strict';
+
+Object.assign(SpaceView, {
+  mode: 'sys', tab: 'prog', rot: [-40, -25], autoSpin: true, selSat: null, surfBody: 'moon', selReg: null,
+  launchSel: { r: null, p: 'comm', body: 'moon', tgt: null }, anims: [], seenLaunch: null,
+  // ------------------------------------------------ Земля
+  globe(g) {
+    const R = Math.min(g.W - (g.W > 900 ? 380 : 0), g.H) * 0.3 * this.zoom;
+    const proj = d3.geoOrthographic().scale(R).translate([g.cx, g.cy]).rotate(this.rot).clipAngle(90).precision(0.6);
+    return { R, proj };
+  },
+  satPos(x, time, gl, g) {
+    let lon, lat, alt = x.alt;
+    const T = SATS[x.k];
+    if (x.k === 'spy' && x.tgt && S.nations[x.tgt]) {
+      const c = G.M.provinces[nat(x.tgt).capital]; lon = c ? c.c[0] : 0; lat = c ? c.c[1] * 0.6 : 0; alt = 1.22;
+      lon += Math.sin(time * 0.7 + x.id) * 3;
+    } else {
+      const sp = 0.25 / Math.pow(alt, 1.5);
+      const th = (x.ph + (time * 12 + S.turn * 40) * sp) * Math.PI / 180, inc = x.inc * Math.PI / 180;
+      const X = Math.cos(th), Y = Math.sin(th) * Math.cos(inc), Z = Math.sin(th) * Math.sin(inc);
+      lon = Math.atan2(Y, X) * 180 / Math.PI; lat = Math.asin(Z) * 180 / Math.PI;
+    }
+    return this.proj3(lon, lat, alt, gl, g);
+  },
+  proj3(lon, lat, alt, gl, g) {
+    const r = d3.geoRotation(this.rot)([lon, lat]);
+    const la = r[1] * Math.PI / 180, lo = r[0] * Math.PI / 180;
+    const vx = Math.cos(la) * Math.cos(lo), vy = Math.cos(la) * Math.sin(lo), vz = Math.sin(la);
+    const sx = g.cx + gl.R * alt * vy, sy = g.cy - gl.R * alt * vz;
+    const hidden = vx < 0 && Math.hypot(vy, vz) * alt < 1;
+    return { x: sx, y: sy, z: vx, hidden };
+  },
+  drawEarth() {
+    const cv = $('#spCv'), x = cv.getContext('2d');
+    const time = (performance.now() - this.t0) / 1000, g = this.geom(), gl = this.globe(g);
+    const W = cv.clientWidth, H = cv.clientHeight;
+    if (this.autoSpin && !this.drag) this.rot[0] += 0.06;
+    if (this.rotTo) { const k = 0.08; this.rot[0] += (this.rotTo[0] - this.rot[0]) * k; this.rot[1] += (this.rotTo[1] - this.rot[1]) * k; if (Math.abs(this.rotTo[0] - this.rot[0]) < 0.3) this.rotTo = null; }
+    x.fillStyle = '#03050b'; x.fillRect(0, 0, W, H);
+    this.stars.forEach(s => { x.globalAlpha = 0.3 + 0.3 * Math.sin(time + s.p); x.fillStyle = '#fff'; x.fillRect(s.x * W, s.y * H, s.r, s.r); });
+    x.globalAlpha = 1;
+    // атмосфера
+    const at = x.createRadialGradient(g.cx, g.cy, gl.R * 0.95, g.cx, g.cy, gl.R * 1.18);
+    at.addColorStop(0, 'rgba(90,160,255,.45)'); at.addColorStop(1, 'rgba(90,160,255,0)');
+    x.fillStyle = at; x.beginPath(); x.arc(g.cx, g.cy, gl.R * 1.18, 0, 6.29); x.fill();
+    // орбиты и спутники за Землёй
+    const sats = (S.space.sats || []).map(s => ({ s, p: this.satPos(s, time, gl, g) }));
+    const drawSat = ({ s, p }) => {
+      const me = s.o === S.player, T = SATS[s.k], r = s.k === 'module' ? 5 : s.k === 'weapon' || s.k === 'early' || s.k === 'tele' ? 4 : 3;
+      x.globalAlpha = p.hidden ? 0.15 : p.z < 0 ? 0.55 : 1;
+      x.fillStyle = nat(s.o) ? (me ? '#ffd779' : nat(s.o).color) : '#ccc';
+      if (s.k === 'module') { x.fillRect(p.x - 6, p.y - 2, 12, 4); x.fillRect(p.x - 1.5, p.y - 5, 3, 10); }
+      else { x.beginPath(); x.arc(p.x, p.y, r, 0, 6.29); x.fill(); x.fillStyle = T.col; x.fillRect(p.x - r - 3, p.y - 1, 3, 2); x.fillRect(p.x + r, p.y - 1, 3, 2); }
+      if (me) { x.strokeStyle = '#ffd779'; x.lineWidth = 1; x.beginPath(); x.arc(p.x, p.y, r + 3, 0, 6.29); x.stroke(); }
+      if (this.selSat === s.id || this.hoverSat === s.id) { x.strokeStyle = '#fff'; x.setLineDash([3, 3]); x.beginPath(); x.arc(p.x, p.y, r + 8, 0, 6.29); x.stroke(); x.setLineDash([]); }
+      x.globalAlpha = 1;
+    };
+    sats.filter(o => o.p.z < 0).forEach(drawSat);
+    // Земля: океан, сетка, страны
+    const path = d3.geoPath(gl.proj, x);
+    const oc = x.createRadialGradient(g.cx - gl.R * 0.35, g.cy - gl.R * 0.35, gl.R * 0.1, g.cx, g.cy, gl.R);
+    oc.addColorStop(0, '#2a5d9a'); oc.addColorStop(1, '#0d2442');
+    x.fillStyle = oc; x.beginPath(); path({ type: 'Sphere' }); x.fill();
+    x.strokeStyle = 'rgba(255,255,255,.07)'; x.lineWidth = 0.6; x.beginPath(); path(this._grat || (this._grat = d3.geoGraticule10())); x.stroke();
+    if (!this._byOwner || this._byOwnerT !== S.turn) {
+      const by = {};
+      G.M.provinces.forEach(p => { const o = S.prov[p.id].o; (by[o] = by[o] || []).push(p.g); });
+      this._byOwner = Object.entries(by).map(([o, gs]) => ({ o, f: { type: 'GeometryCollection', geometries: gs } }));
+      this._byOwnerT = S.turn;
+    }
+    this._byOwner.forEach(({ o, f }) => { x.fillStyle = o === S.player ? '#d9b45a' : (S.nations[o] ? nat(o).color : '#666'); x.beginPath(); path(f); x.fill(); });
+    x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 0.4;
+    this._byOwner.forEach(({ f }) => { x.beginPath(); path(f); x.stroke(); });
+    // тень ночи
+    const sh = x.createLinearGradient(g.cx - gl.R, 0, g.cx + gl.R, 0);
+    sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(0.62, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,10,.5)');
+    x.fillStyle = sh; x.beginPath(); path({ type: 'Sphere' }); x.fill();
+    // лучи спутников-шпионов к цели
+    sats.forEach(({ s, p }) => {
+      if (s.k !== 'spy' || !s.tgt || !S.nations[s.tgt] || p.hidden) return;
+      const c = G.M.provinces[nat(s.tgt).capital]; if (!c) return;
+      const q = this.proj3(c.c[0], c.c[1], 1, gl, g); if (q.z < 0) return;
+      x.fillStyle = s.o === S.player ? 'rgba(255,215,121,.16)' : 'rgba(255,120,120,.12)';
+      x.beginPath(); x.moveTo(p.x, p.y); x.lineTo(q.x - 14, q.y); x.lineTo(q.x + 14, q.y); x.closePath(); x.fill();
+      x.strokeStyle = s.o === S.player ? 'rgba(255,215,121,.7)' : 'rgba(255,120,120,.6)'; x.beginPath(); x.ellipse(q.x, q.y, 14, 6, 0, 0, 6.29); x.stroke();
+    });
+    sats.filter(o => o.p.z >= 0).forEach(drawSat);
+    this._sats = sats;
+    // пуски
+    this.drawLaunches(x, gl, g);
+    // подсказка
+    const hs = this.hoverSat && sats.find(o => o.s.id === this.hoverSat);
+    if (hs) {
+      const s = hs.s, t = `${SATS[s.k].icon} ${SATS[s.k].name} — ${nat(s.o).name}${s.tgt && S.nations[s.tgt] ? ' → ' + nat(s.tgt).name : ''}`;
+      x.font = '12px system-ui, sans-serif'; const w = x.measureText(t).width + 14;
+      x.fillStyle = 'rgba(8,13,22,.92)'; x.fillRect(hs.p.x + 12, hs.p.y - 26, w, 22); x.fillStyle = '#e6ebf5'; x.textAlign = 'left'; x.fillText(t, hs.p.x + 19, hs.p.y - 11);
+    }
+    x.font = '12px system-ui, sans-serif'; x.textAlign = 'left'; x.fillStyle = 'rgba(200,210,230,.7)';
+    x.fillText(`Спутников на орбите: ${sats.length} · ваших: ${sats.filter(o => o.s.o === S.player).length}`, 16, H - 34);
+  },
+  drawLaunches(x, gl, g) {
+    const now = performance.now();
+    this.anims = this.anims.filter(a => now - a.t0 < 5200);
+    this.anims.forEach(a => {
+      const f = (now - a.t0) / 4200, L = a.L;
+      const fail = !L.ok, stop = fail ? 0.42 : 1;
+      const ff = Math.min(f, stop);
+      const alt = 1 + (L.p === 'exp' ? 1.6 : 0.32) * Math.pow(ff, 1.4);
+      const lon = L.site[0] + ff * (L.p === 'exp' ? 40 : 22), lat = L.site[1] * (1 - ff * 0.6);
+      const p = this.proj3(lon, lat, alt, gl, g), p0 = this.proj3(L.site[0], L.site[1], 1, gl, g);
+      if (p.hidden && p0.z < 0) return;
+      const col = L.o === S.player ? '#ffd779' : (S.nations[L.o] ? nat(L.o).color : '#fff');
+      // след
+      x.strokeStyle = 'rgba(255,190,120,.5)'; x.lineWidth = 2; x.beginPath();
+      for (let k = 0; k <= 12; k++) { const fk = ff * k / 12, q = this.proj3(L.site[0] + fk * (L.p === 'exp' ? 40 : 22), L.site[1] * (1 - fk * 0.6), 1 + (L.p === 'exp' ? 1.6 : 0.32) * Math.pow(fk, 1.4), gl, g); k ? x.lineTo(q.x, q.y) : x.moveTo(q.x, q.y); }
+      x.stroke(); x.lineWidth = 1;
+      if (fail && f > stop) {
+        const e = (f - stop) / 0.5;
+        if (e < 1) { for (let i = 0; i < 14; i++) { const a2 = i / 14 * 6.28; x.fillStyle = `rgba(255,${120 + i * 8},40,${1 - e})`; x.beginPath(); x.arc(p.x + Math.cos(a2) * e * 26, p.y + Math.sin(a2) * e * 26, 3 * (1 - e) + 1, 0, 6.29); x.fill(); } }
+        return;
+      }
+      if (f > 1) return;
+      const ang = Math.atan2(p.y - p0.y, p.x - p0.x);
+      x.save(); x.translate(p.x, p.y); x.rotate(ang);
+      x.fillStyle = '#ff9a3c'; x.beginPath(); x.moveTo(-6, 0); x.lineTo(-14 - Math.random() * 8, -3); x.lineTo(-14 - Math.random() * 8, 3); x.fill();
+      x.fillStyle = col; x.beginPath(); x.moveTo(9, 0); x.lineTo(-6, -4); x.lineTo(-6, 4); x.closePath(); x.fill();
+      x.restore();
+      x.font = '11px system-ui, sans-serif'; x.fillStyle = col; x.textAlign = 'left';
+      x.fillText(`${ROCKETS[L.r].name} · ${nat(L.o).name}`, p.x + 12, p.y - 8);
+    });
+  },
+  pullLaunches(auto) {
+    const L = (S.space && S.space.launches) || [];
+    const last = L.length ? L[L.length - 1].id : 0;
+    if (this.seenLaunch === null) { this.seenLaunch = last; return; }
+    L.filter(q => q.id > this.seenLaunch).forEach(q => {
+      this.anims.push({ L: q, t0: performance.now() + this.anims.length * 700 });
+      if (auto && q.o === S.player) { this.mode = 'earth'; this.autoSpin = false; this.rotTo = [-q.site[0], -q.site[1] * 0.7]; }
+    });
+    this.seenLaunch = last;
+  },
+  // ------------------------------------------------ поверхность
+  surfGeom(g) {
+    const side = g.W > 900 ? 380 : 0, aw = g.W - side - 40, ah = g.H - 110;
+    const k = Math.min(aw / SURF_W, ah / SURF_H) * Math.min(1.6, this.zoom);
+    return { k, ox: 20 + (aw - SURF_W * k) / 2 + this.panX * 0.5, oy: 64 + (ah - SURF_H * k) / 2 + this.panY * 0.5 };
+  },
+  surfCells(body) {
+    G.surfPoly = G.surfPoly || {};
+    if (!G.surfPoly[body]) {
+      const s = surface(body);
+      const vor = d3.Delaunay.from(s.cells.map(c => [c.x, c.y])).voronoi([0, 0, SURF_W, SURF_H]);
+      const R = seeded('cr-' + body);
+      G.surfPoly[body] = { polys: s.cells.map((c, i) => vor.cellPolygon(i)), craters: Array.from({ length: 70 }, () => ({ x: R() * SURF_W, y: R() * SURF_H, r: 3 + R() * 18 })) };
+    }
+    return G.surfPoly[body];
+  },
+  drawSurf() {
+    const cv = $('#spCv'), x = cv.getContext('2d'), g = this.geom(), W = cv.clientWidth, H = cv.clientHeight;
+    const body = this.surfBody, s = surface(body), P = this.surfCells(body), sg = this.surfGeom(g);
+    x.fillStyle = '#03050b'; x.fillRect(0, 0, W, H);
+    x.save(); x.translate(sg.ox, sg.oy); x.scale(sg.k, sg.k);
+    x.fillStyle = s.cfg.base; x.fillRect(0, 0, SURF_W, SURF_H);
+    s.cells.forEach((c, i) => {
+      const poly = P.polys[i]; if (!poly) return;
+      x.beginPath(); poly.forEach((p, j) => (j ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1]))); x.closePath();
+      x.fillStyle = TERR[c.terr].col; x.globalAlpha = 0.55; x.fill(); x.globalAlpha = 1;
+      const o = regOwner(body, c.id);
+      if (o) { x.fillStyle = o === S.player ? 'rgba(227,181,75,.35)' : (S.nations[o] ? nat(o).color : '#888'); x.globalAlpha = o === S.player ? 1 : 0.35; x.fill(); x.globalAlpha = 1; }
+      x.strokeStyle = o ? (o === S.player ? '#e3b54b' : nat(o).color) : 'rgba(0,0,0,.35)'; x.lineWidth = o ? 3 : 1.2; x.stroke();
+    });
+    // кратеры
+    P.craters.forEach(c => { x.strokeStyle = 'rgba(0,0,0,.18)'; x.lineWidth = 2; x.beginPath(); x.arc(c.x, c.y, c.r, 0, 6.29); x.stroke(); x.strokeStyle = 'rgba(255,255,255,.08)'; x.beginPath(); x.arc(c.x - 1, c.y - 1, c.r, 3.4, 5.5); x.stroke(); });
+    // постройки и подписи
+    x.textAlign = 'center';
+    s.cells.forEach((c, i) => {
+      const o = regOwner(body, c.id);
+      const reg = o && S.space.n[o].bases[body].reg[c.id];
+      if (this.selReg === c.id || this.hoverReg === c.id) { const poly = P.polys[i]; x.beginPath(); poly.forEach((p, j) => (j ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1]))); x.closePath(); x.strokeStyle = this.selReg === c.id ? '#fff' : 'rgba(255,255,255,.5)'; x.lineWidth = 3; x.setLineDash([8, 5]); x.stroke(); x.setLineDash([]); }
+      x.font = '600 13px system-ui, sans-serif'; x.fillStyle = 'rgba(255,255,255,.85)'; x.fillText(c.name, c.x, c.y + 34);
+      if (reg) {
+        const icons = Object.keys(reg.b).filter(k => reg.b[k] > 0).map(k => SBLD[k].icon + (reg.b[k] > 1 ? reg.b[k] : ''));
+        x.font = '22px system-ui, sans-serif'; x.fillText(icons.slice(0, 3).join(' '), c.x, c.y);
+        if (icons.length > 3) { x.font = '18px system-ui, sans-serif'; x.fillText(icons.slice(3, 6).join(' '), c.x, c.y + 20); }
+        x.font = '12px system-ui, sans-serif'; x.fillStyle = o === S.player ? '#ffd779' : '#fff'; x.fillText(nat(o).name, c.x, c.y - 26);
+      }
+      const q = S.space.n[S.player] && S.space.n[S.player].bases[body] && S.space.n[S.player].bases[body].q;
+      if (q && q.rid === c.id) { x.font = '18px system-ui'; x.fillText('🏗', c.x + 30, c.y - 10); }
+    });
+    x.restore();
+    x.font = '12px system-ui, sans-serif'; x.textAlign = 'left'; x.fillStyle = 'rgba(200,210,230,.75)';
+    x.fillText(`${BODIES[body].icon} ${BODIES[body].name}: районов ${s.cells.length}. Клик по району — подробности и стройка. Золотая рамка — ваши районы.`, 16, H - 34);
+  },
+  surfHit(e) {
+    const g = this.geom(), sg = this.surfGeom(g), r = $('#spCv').getBoundingClientRect();
+    const mx = (e.clientX - r.left - sg.ox) / sg.k, my = (e.clientY - r.top - sg.oy) / sg.k;
+    if (mx < 0 || my < 0 || mx > SURF_W || my > SURF_H) return null;
+    let best = null, bd = 1e9;
+    surface(this.surfBody).cells.forEach(c => { const d = Math.hypot(c.x - mx, c.y - my); if (d < bd) { bd = d; best = c.id; } });
+    return best;
+  },
+});
+
+// ================================================================= панели
+Object.assign(SpaceView, {
+  tabs() {
+    const t = (k, n) => `<button class="${this.tab === k ? 'on' : ''}" data-sp="tab" data-id="${k}">${n}</button>`;
+    return `<div class="tabs sp-tabs">${t('prog', '🚀 Программа')}${t('launch', '🛫 Запуск')}${t('sats', '🛰 Спутники')}${t('intl', '🤝 Проекты')}</div>`;
+  },
+  launchHtml() {
+    const me = S.player, L = this.launchSel, s = SP(me);
+    if (!L.r || rocketOk(me, L.r)) L.r = Object.keys(ROCKETS).find(r => !rocketOk(me, r)) || 'light';
+    s.launched = s.launched && s.launched.t === S.turn ? s.launched : { t: S.turn, k: 0 };
+    const left = launchesPerTurn(me) - s.launched.k;
+    const rc = Object.entries(ROCKETS).map(([k, R0]) => {
+      const e = rocketOk(me, k);
+      return `<div class="sp-card ${L.r === k ? 'on' : ''} ${e ? 'off' : ''}" ${e ? '' : `data-sp="lr" data-id="${k}"`}><div class="row sp"><b>${R0.icon} ${R0.name}</b><span class="chip">груз ${R0.pay}</span></div>
+        <small>${R0.desc}</small><small>💰${fmt(rocketCost(me, k))} · надёжность ${Math.round(rocketRel(me, k) * 100)}%</small>${e ? `<small class="bad">${esc(e)}</small>` : ''}</div>`;
+    }).join('');
+    const pc = Object.entries(SATS).map(([k, T]) => {
+      const e = !hasST(me, T.tech) ? `нужна «${STECH[T.tech].name}»` : '';
+      return `<div class="sp-card ${L.p === k ? 'on' : ''} ${e ? 'off' : ''}" ${e ? '' : `data-sp="lp" data-id="${k}"`}><div class="row sp"><b>${T.icon} ${T.name}</b><span class="chip">масса ${T.pay}</span></div><small>${T.desc}</small><small>💰${fmt(satCost(me, k))} · служит ${T.life} ход.</small>${e ? `<small class="muted">🔒 ${e}</small>` : ''}</div>`;
+    }).join('');
+    const bodies = Object.keys(BODIES).filter(b => !s.bases[b] && !s.missions.some(m => m.body === b));
+    const enemySats = (S.space.sats || []).filter(q => q.o !== me && atWar(me, q.o));
+    const chk = launchCheck(me, L.r, L.p, L.body, L.tgt);
+    const total = typeof chk === 'object' ? chk.cost : null;
+    return `<div class="sec"><h4>🛫 Пуск ракеты</h4><p class="muted" style="font-size:12.5px;margin:0 0 6px">Пусков в этом ходу: <b>${Math.max(0, left)}</b> из ${launchesPerTurn(me)} (космодромы и стартовые комплексы). ${!bldSum(me, 'spacecenter') ? '<span class="bad">Нужен космодром — постройте его в провинции (вкладка «Общество»).</span>' : ''}</p>
+      <h5>1. Ракета</h5><div class="sp-cards">${rc}</div>
+      <h5>2. Груз</h5><div class="sp-cards">${pc}
+        <div class="sp-card ${L.p === 'exp' ? 'on' : ''}" data-sp="lp" data-id="exp"><b>🧑‍🚀 Экспедиция с основанием базы</b><small>Нужна грузоподъёмность 4 (Луна) или 8+ (планеты).</small>
+          ${L.p === 'exp' ? `<select class="input" id="lpBody">${bodies.map(b => `<option value="${b}" ${L.body === b ? 'selected' : ''}>${BODIES[b].icon} ${BODIES[b].name} — груз ${BODY_PAY[b]}, ${missionTurns(me, b)} х.${s.tech[BODIES[b].tech] ? '' : ' 🔒'}</option>`).join('')}</select>` : ''}</div>
+        ${hasST(me, 'sdi') ? `<div class="sp-card ${L.p === 'asat' ? 'on' : ''}" data-sp="lp" data-id="asat"><b>🎯 Противоспутниковая ракета</b><small>Сбивает спутник страны, с которой идёт война (75%).</small>
+          ${L.p === 'asat' ? (enemySats.length ? `<select class="input" id="lpTgt">${enemySats.map(q => `<option value="${q.id}" ${L.tgt === q.id ? 'selected' : ''}>${SATS[q.k].icon} ${SATS[q.k].name} — ${esc(nat(q.o).name)}</option>`).join('')}</select>` : '<small class="muted">Нет вражеских спутников (нужна война).</small>') : ''}</div>` : ''}
+      </div>
+      <div class="sp-go"><div>${total !== null ? `Итого: <b>💰${fmt(total)}</b> · успех пуска ${Math.round(rocketRel(me, L.r) * 100)}%` : `<span class="bad">${esc(chk)}</span>`}</div>
+        <button class="btn gold" data-sp="go" ${total === null ? 'disabled' : ''}>🚀 Пуск!</button></div></div>`;
+  },
+  satsHtml() {
+    const me = S.player, mine = satsOf(me);
+    const others = Object.values(S.nations).filter(n => n.alive && n.id !== me).map(n => ({ n, k: satsOf(n.id).length })).filter(o => o.k).sort((a, b) => b.k - a.k);
+    const tg = Object.values(S.nations).filter(n => n.alive && n.id !== me).sort((a, b) => (b.major - a.major) || a.name.localeCompare(b.name, 'ru'));
+    const row = x => {
+      const T = SATS[x.k], left = x.life - (S.turn - x.t);
+      return `<div class="sat-row ${this.selSat === x.id ? 'on' : ''}" data-sp="selSat" data-id="${x.id}"><span>${T.icon}</span><div style="flex:1"><b>${T.name}</b><small>служит ещё ${left} ход.${x.k === 'spy' ? (x.tgt && S.nations[x.tgt] ? ` · цель: <b>${esc(nat(x.tgt).name)}</b>` : ' · <span class="warn">цель не выбрана</span>') : ''}</small>
+        ${x.k === 'spy' ? `<select class="input sm" data-sattgt="${x.id}"><option value="">— цель не выбрана —</option>${tg.map(n => `<option value="${n.id}" ${x.tgt === n.id ? 'selected' : ''}>${esc(n.name)}${atWar(me, n.id) ? ' ⚔' : ''}</option>`).join('')}</select>` : ''}</div></div>`;
+    };
+    const intel = satsOf(me, 'spy').filter(x => x.tgt && S.nations[x.tgt]).map(x => intelReport(x.tgt)).join('');
+    return `<div class="sec"><h4>🛰 Ваши спутники (${mine.length})</h4>${mine.length ? mine.map(row).join('') : '<p class="muted">На орбите нет ваших спутников. Запустите их во вкладке «Запуск».</p>'}
+      <p class="muted" style="font-size:12px">Спутники-шпионы под управлением: ${satsOf(me, 'spy').filter(x => x.tgt).length}/${spyCap(me)} (больше — с Центром управления полётами).</p></div>
+      ${intel ? `<div class="sec"><h4>🔭 Разведка со спутников</h4>${intel}</div>` : ''}
+      <div class="sec"><h4>🌍 Спутники других стран</h4>${others.length ? `<table class="t">${others.slice(0, 15).map(o => `<tr><td>${sw(o.n.id)} ${esc(o.n.name)}</td><td class="r">${o.k}</td><td>${Object.keys(SATS).map(k => satsOf(o.n.id, k).length ? SATS[k].icon + satsOf(o.n.id, k).length : '').join(' ')}</td></tr>`).join('')}</table>` : '<p class="muted">Пока ни у кого нет спутников.</p>'}</div>`;
+  },
+  intlHtml() {
+    const me = S.player, sp = SPACE2();
+    const live = sp.intl.filter(x => !x.done), done = sp.intl.filter(x => x.done);
+    const card = x => {
+      const P0 = INTL[x.k], my = x.m[me], mem = Object.keys(x.m).filter(n => x.m[n].r > 0 || x.m[n].paid > 0);
+      const rb = r => `<button class="btn sm ${my && my.r === r ? 'gold' : 'ghost'}" data-sp="ij" data-id="${x.id}" data-r="${r}">${r ? Math.round(r * 100) + '%' : 'Не платить'}</button>`;
+      return `<div class="sp-card on"><div class="row sp"><b>${P0.icon} ${P0.name}</b><span class="chip">${Math.round(x.prog / x.goal * 100)}%</span></div>
+        <div class="bar"><i style="width:${Math.min(100, x.prog / x.goal * 100)}%"></i></div><small>${P0.desc}</small>
+        <small>Участники: ${mem.map(n => `${sw(n)} ${esc(nat(n).name)}`).join(', ')}</small>
+        ${hasST(me, 'rockets') ? `<div class="row" style="gap:4px;flex-wrap:wrap;margin-top:4px"><span style="font-size:12px">Ваш взнос в ход (доля дохода):</span>${INTL_RATES.map(rb).join('')}${my ? rb(0) : ''}</div>` : '<small class="muted">Нужна своя космическая программа.</small>'}
+        ${my ? `<small>Вы вложили 💰${fmt(my.paid)}</small>` : ''}</div>`;
+    };
+    const can = Object.keys(INTL).filter(k => !sp.intl.some(x => x.k === k && !x.done) && !sp.intl.some(x => x.k === k && x.done && x.m[me]));
+    return `<div class="sec"><h4>🤝 Международные космические проекты</h4><p class="muted" style="font-size:12.5px;margin:0 0 6px">Страны вместе строят станции, телескопы и экспедиции. Каждый платит долю своего дохода; когда проект готов, бонус получают все участники.</p>
+      ${live.length ? live.map(card).join('') : '<p class="muted">Сейчас нет общих проектов.</p>'}</div>
+      <div class="sec"><h4>➕ Основать проект</h4>${can.map(k => { const P0 = INTL[k], ok = hasST(me, P0.tech); return `<div class="sp-card ${ok ? '' : 'off'}"><b>${P0.icon} ${P0.name}</b><small>${P0.desc}</small><small>Цель: 💰${fmt(P0.goal * P().costMul)} · взнос основателя 💰${fmt(P0.goal * 0.1 * P().costMul)}${ok ? '' : ` · 🔒 нужна «${STECH[P0.tech].name}»`}</small>${ok ? `<button class="btn sm gold" data-sp="if" data-id="${k}">Основать</button>` : ''}</div>`; }).join('') || '<p class="muted">Все проекты уже идут или завершены.</p>'}</div>
+      ${done.length ? `<div class="sec"><h4>✅ Завершённые</h4>${done.map(x => `<div>${INTL[x.k].icon} ${INTL[x.k].name} — ${Object.keys(x.m).filter(n => x.m[n].paid > 0).map(n => esc(nat(n).name)).join(', ')}</div>`).join('')}</div>` : ''}`;
+  },
+  surfHtml() {
+    const me = S.player, body = this.surfBody, B = BODIES[body], s = surface(body);
+    const base = sb(me, body) && ensureRegions(me, body);
+    let h = `<div class="sec"><h4>${B.icon} ${B.name} — поверхность</h4><p class="muted" style="font-size:12.5px;margin:0">${esc(B.desc)}</p>
+      ${base ? `<div class="kv" style="margin-top:6px"><span>Ваших районов</span><span>${Object.keys(base.reg).length} из ${s.cells.length}</span><span>Доход</span><span class="good">+${fmtMoney(baseYield(me, body).gold)}/ход</span></div>${base.q ? `<div>🏗 Строится: ${SBLD[base.q.id].icon} ${SBLD[base.q.id].name} — ${base.q.left} х. (${esc(s.cells[base.q.rid] ? s.cells[base.q.rid].name : '')})</div>` : ''}`
+        : `<p class="warn" style="font-size:12.5px">Здесь нет вашей базы. Отправьте экспедицию (вкладка «Запуск»).</p>`}
+      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">${Object.keys(BODIES).filter(b => Object.values(S.space.n).some(q => q.bases[b])).map(b => `<button class="btn sm ${b === body ? 'gold' : 'ghost'}" data-sp="surf" data-id="${b}">${BODIES[b].icon} ${BODIES[b].name}</button>`).join('')}</div></div>`;
+    const rid = this.selReg;
+    if (rid === null || rid === undefined || !s.cells[rid]) return h + '<div class="sec muted">Выберите район на карте.</div>';
+    const c = s.cells[rid], o = regOwner(body, rid), T = TERR[c.terr];
+    h += `<div class="sec"><h4>📍 ${esc(c.name)}</h4><div class="kv"><span>Рельеф</span><span>${T.name}</span><span>Мест под здания</span><span>${T.slots}</span><span>Владелец</span><span>${o ? `${sw(o)} ${esc(nat(o).name)}` : '<span class="muted">свободен</span>'}</span></div><small class="muted">${T.desc}</small>`;
+    if (!o && base) { const e = canClaim(me, body, rid); h += `<button class="btn ${e ? 'ghost' : 'gold'}" data-sp="claim" data-id="${rid}" ${e && e !== 'Недостаточно средств' ? 'disabled' : ''} style="width:100%;margin-top:8px">🏳 Освоить район · 💰${fmt(claimCost(me, base))}</button>${e ? `<small class="bad">${esc(e)}</small>` : ''}`; }
+    if (o === me) {
+      const reg = base.reg[rid];
+      h += `<div class="muted" style="font-size:12px;margin-top:6px">Занято мест: ${regUsed(reg)}/${regSlots(body, rid, reg)}</div><div class="sp-blds">${SPACE_BLD.filter(X => !X.bodies || X.bodies.some(q => q === body || (q === 'mars' && body === 'phobos'))).map(X => {
+        const lvl = reg.b[X.id] || 0, e = canBuildIn(me, body, rid, X.id);
+        return `<div class="sp-bld ${lvl ? 'has' : ''}"><div class="row sp"><b>${X.icon} ${esc(X.name)}</b><span class="chip">${lvl}/${X.max}</span></div><small>${esc(X.desc)}</small>
+          ${lvl < X.max ? `<button class="btn sm ${e ? 'ghost' : ''}" data-sp="bin" data-rid="${rid}" data-id="${X.id}" ${e && e !== 'Недостаточно средств' ? 'disabled' : ''}>${lvl ? 'Улучшить' : 'Построить'} · 💰${fmt(sbldCost(me, X.id, lvl))}</button>` : ''}${e && lvl < X.max && e !== 'Недостаточно средств' ? `<small class="muted">${esc(e)}</small>` : ''}</div>`;
+      }).join('')}</div>`;
+    }
+    return h + '</div>';
+  },
+});
+
+// разведсводка со спутника
+function intelReport(t) {
+  const T = nat(t);
+  const ar = Object.values(S.armies).filter(a => a.o === t);
+  let inf = 0, arm = 0, air = 0;
+  ar.forEach(a => { for (const k in a.u) { const c = UNITS[k] && UNITS[k].cat; if (c === 'inf') inf += a.u[k]; else if (c === 'arm') arm += a.u[k]; else if (c === 'air') air += a.u[k]; } });
+  const ships = Object.values(S.fleets).filter(f => f.o === t).reduce((s, f) => s + Object.values(f.s).reduce((a, b) => a + b, 0), 0);
+  const big = ar.slice().sort((a, b) => mpOf(b.u) - mpOf(a.u))[0];
+  const tech = TECHS.find(q => q.id === T.res.branch);
+  return `<div class="intel"><b>${sw(t)} ${esc(T.name)}</b><div class="kv" style="font-size:12.5px"><span>Армий</span><span>${ar.length}</span><span>Солдат</span><span>${fmt(inf)}</span><span>Бронетехника / авиация</span><span>${fmt(arm)} / ${fmt(air)}</span><span>Кораблей</span><span>${fmt(ships)}</span>
+    <span>Ядерные боеголовки</span><span>☢ ${T.nukes}</span><span>Казна</span><span>💰${fmt(T.gold)}</span><span>Исследует</span><span>${tech ? tech.icon + ' ' + tech.name : '—'}</span>${big ? `<span>Главная армия</span><span>${esc(provName(big.p))} (${fmt(mpOf(big.u))})</span>` : ''}</div></div>`;
+}
+
+(function patchUI7() {
+  const draw0 = SpaceView.draw, render0 = SpaceView.render, show0 = SpaceView.show, onClick0 = SpaceView.onClick, onMove0 = SpaceView.onMove, onCC0 = SpaceView.onCanvasClick, bodyBlock0 = SpaceView.bodyBlock;
+  SpaceView.draw = function () {
+    const cv = $('#spCv'); if (!cv) return;
+    if (this.mode === 'sys') return draw0.call(this);
+    const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (this.mode === 'earth') this.drawEarth(); else this.drawSurf();
+  };
+  SpaceView.show = function () {
+    SPACE2();
+    show0.call(this);
+    const top = $('#space .sp-top');
+    if (top && !$('#spModes')) top.querySelector('.sp-title').insertAdjacentHTML('afterend', '<div class="sp-modes" id="spModes"></div>');
+    this.pullLaunches(false);
+    this.renderModes();
+  };
+  SpaceView.renderModes = function () {
+    const m = $('#spModes'); if (!m) return;
+    const b = (k, t) => `<button class="btn sm ${this.mode === k ? 'gold' : 'ghost'}" data-sp="mode" data-id="${k}">${t}</button>`;
+    m.innerHTML = b('earth', '🌍 Орбита Земли') + b('sys', '☀ Солнечная система') + b('surf', '🪐 Поверхность планет');
+  };
+  SpaceView.render = function () {
+    if (!this.open || !S || !S.player) return;
+    SPACE2();
+    this.pullLaunches(true);
+    this.renderModes();
+    if (this.mode === 'surf') { $('#spPanel').innerHTML = this.surfHtml(); return; }
+    if (this.tab === 'prog') { render0.call(this); $('#spPanel').insertAdjacentHTML('afterbegin', this.tabs()); return; }
+    $('#spDate').textContent = dateStr();
+    $('#spPanel').innerHTML = this.tabs() + (this.tab === 'launch' ? this.launchHtml() : this.tab === 'sats' ? this.satsHtml() : this.intlHtml());
+    $('#spPanel').querySelectorAll('[data-sattgt]').forEach(sel => { sel.onchange = () => UI.cmd('satTarget', { id: +sel.dataset.sattgt, tgt: sel.value || null }, () => this.render()); });
+    const lb = $('#lpBody'); if (lb) lb.onchange = () => { this.launchSel.body = lb.value; this.render(); };
+    const lt = $('#lpTgt'); if (lt) { if (!this.launchSel.tgt) this.launchSel.tgt = +lt.value; lt.onchange = () => { this.launchSel.tgt = +lt.value; this.render(); }; }
+  };
+  SpaceView.bodyBlock = function (id) {
+    const me = S.player, B = BODIES[id], base = B && sb(me, id) && ensureRegions(me, id);
+    if (base) {
+      const y = baseYield(me, id);
+      return `<div class="sec sp-body"><h4>${B.icon} ${esc(B.name)}</h4><p class="muted" style="font-size:12.5px;margin:0 0 6px">${esc(B.desc)}</p>
+        <div class="row sp"><b class="goldc">🏳 Ваша база</b><span class="muted">районов: ${Object.keys(base.reg).length}</span></div>
+        <div class="kv" style="font-size:12.5px"><span>Доход</span><span class="good">+${fmtMoney(y.gold)}/ход</span>${y.sci ? `<span>Наука</span><span>+${y.sci}</span>` : ''}${y.sp ? `<span>Очки космоса</span><span>+${y.sp}</span>` : ''}${y.oil ? `<span>Нефть и топливо</span><span>+${y.oil.toFixed(1)}</span>` : ''}${y.steel ? `<span>Сталь</span><span>+${y.steel.toFixed(1)}</span>` : ''}${y.stab ? `<span>Стабильность</span><span>+${y.stab}</span>` : ''}</div>
+        ${base.q ? `<div style="margin-top:6px">🏗 Строится: ${SBLD[base.q.id].icon} ${esc(SBLD[base.q.id].name)} — ${base.q.left} х.</div>` : ''}
+        <button class="btn gold" data-sp="surf" data-id="${id}" style="margin-top:8px;width:100%">🪐 Открыть поверхность — стройка и районы</button></div>`;
+    }
+    let h = bodyBlock0.call(this, id);
+    if (BODIES[id]) h = h.replace(/<\/div>$/, `<button class="btn sm ghost" data-sp="surf" data-id="${id}" style="margin-top:8px;width:100%">🪐 Открыть поверхность</button></div>`);
+    return h;
+  };
+  SpaceView.onClick = function (e) {
+    const b = e.target.closest('[data-sp]');
+    if (!b) return;
+    const a = b.dataset.sp, id = b.dataset.id, re = () => this.render();
+    if (a === 'mode') { this.mode = id; if (id === 'surf' && this.selReg === null) { const base = sb(S.player, this.surfBody); if (base && base.reg) this.selReg = +Object.keys(base.reg)[0]; } return re(); }
+    if (a === 'tab') { this.tab = id; return re(); }
+    if (a === 'lr') { this.launchSel.r = id; return re(); }
+    if (a === 'lp') { if (this.launchSel.p !== id) { this.launchSel.p = id; if (id === 'exp') { const s = SP(S.player); this.launchSel.body = Object.keys(BODIES).find(q => !s.bases[q] && s.tech[BODIES[q].tech]) || 'moon'; } } return re(); }
+    if (a === 'go') { const L = this.launchSel; return UI.cmd('spaceLaunch2', { r: L.r, p: L.p, body: L.body, tgt: L.tgt }, r => { if (r && r.launch) { this.mode = 'earth'; } re(); }); }
+    if (a === 'selSat') { if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return; this.selSat = +id; this.mode = 'earth'; const x = S.space.sats.find(q => q.id === +id); if (x && x.tgt && S.nations[x.tgt]) { const c = G.M.provinces[nat(x.tgt).capital]; if (c) { this.autoSpin = false; this.rotTo = [-c.c[0], -c.c[1] * 0.6]; } } return re(); }
+    if (a === 'surf') { this.surfBody = id; this.mode = 'surf'; const base = sb(S.player, id); this.selReg = base && ensureRegions(S.player, id) ? +Object.keys(base.reg)[0] : null; return re(); }
+    if (a === 'claim') return UI.cmd('spaceClaim', { body: this.surfBody, rid: +id }, re);
+    if (a === 'bin') return UI.cmd('spaceBuildIn', { body: this.surfBody, rid: +b.dataset.rid, id }, re);
+    if (a === 'ij') return UI.cmd('intlJoin', { id: +id, rate: +b.dataset.r }, re);
+    if (a === 'if') return UI.cmd('intlFound', { k: id }, re);
+    return onClick0.call(this, e);
+  };
+  SpaceView.onMove = function (e) {
+    if (this.mode === 'sys') return onMove0.call(this, e);
+    const cv = $('#spCv');
+    if (this.drag) {
+      const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 4) this.drag.moved = true;
+      if (this.mode === 'earth') { this.autoSpin = false; this.rotTo = null; this.rot = [this.drag.r0[0] + dx * 0.35, clamp(this.drag.r0[1] - dy * 0.35, -80, 80)]; }
+      else { this.panX = this.drag.px + dx * 2; this.panY = this.drag.py + dy * 2; }
+    }
+    if (this.mode === 'earth') {
+      const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+      const hit = (this._sats || []).filter(o => !o.p.hidden).map(o => ({ o, d: Math.hypot(o.p.x - mx, o.p.y - my) })).filter(q => q.d < 10).sort((a, b) => a.d - b.d)[0];
+      this.hoverSat = hit ? hit.o.s.id : null;
+      cv.style.cursor = this.drag && this.drag.moved ? 'grabbing' : hit ? 'pointer' : 'grab';
+    } else { this.hoverReg = this.surfHit(e); cv.style.cursor = this.hoverReg !== null ? 'pointer' : 'default'; }
+  };
+  SpaceView.onCanvasClick = function (e) {
+    if (this.mode === 'sys') return onCC0.call(this, e);
+    if (this.drag && this.drag.moved) return;
+    if (this.mode === 'earth') { if (this.hoverSat) { this.selSat = this.hoverSat; this.tab = 'sats'; this.render(); } return; }
+    const rid = this.surfHit(e);
+    if (rid !== null) { this.selReg = rid; Sound.play('click'); this.render(); }
+  };
+  // перетаскивание земного шара запоминает исходный поворот
+  window.addEventListener('mousedown', e => { if (SpaceView.open && e.target.id === 'spCv' && SpaceView.drag) SpaceView.drag.r0 = SpaceView.rot.slice(); });
+  // разведка со спутника — в карточке страны
+  const card0 = UI.nationCard;
+  UI.nationCard = function (nid) {
+    let h = card0.call(this, nid);
+    if (nid !== S.player && typeof spySatOn === 'function' && spySatOn(S.player, nid)) h += `<div class="sec"><h4>🔭 Спутниковая разведка</h4>${intelReport(nid)}</div>`;
+    return h;
+  };
+  // сообщение о завершении международного проекта
+  const pend0 = UI.showPending;
+  UI.showPending = function () {
+    if (!S || !S.player || !$('#modal').hidden) return;
+    const o = S.pending.find(x => x.to === S.player && !this.answering[x.id]);
+    if (o && o.type === 'intlDone') {
+      this.pendingShown = o.id;
+      this.modal(`<h2 class="goldc">🌍 Международный проект завершён!</h2><p><b>${INTL[o.k].icon} ${INTL[o.k].name}</b> — готово. Участников: ${o.n}.</p><p class="muted">${INTL[o.k].desc}</p><div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn gold" data-act="offer" data-id="${o.id}" data-yes="0">Отлично</button></div>`, true);
+      Sound.play('victory');
+      return;
+    }
+    return pend0.apply(this, arguments);
+  };
+  // пуски других стран тоже видны (анимация при следующем открытии орбиты)
+  const at0 = UI.afterTurn;
+  UI.afterTurn = function () { const r = at0.apply(this, arguments); if (SpaceView.open) SpaceView.pullLaunches(false); return r; };
+})();
+
+// достижения v8
+if (typeof ACH !== 'undefined') {
+  ACH.splice(ACH.length - 1, 0,
+    { id: 'sats10', i: '🛰', n: 'Своя группировка', d: 'Имейте 10 спутников на орбите.', c: c => satsOf(c.me).length >= 10 },
+    { id: 'spysat', i: '🔭', n: 'Всевидящее око', d: 'Наведите спутник-шпион на страну.', c: c => satsOf(c.me, 'spy').some(x => x.tgt) },
+    { id: 'intl', i: '🤝', n: 'Вместе к звёздам', d: 'Завершите международный космический проект.', c: c => S.space && (S.space.intl || []).some(x => x.done && x.m[c.me] && x.m[c.me].paid > 0) },
+    { id: 'regions', i: '🗺', n: 'Колонизатор', d: 'Освойте 6 районов на одном небесном теле.', c: c => S.space && S.space.n[c.me] && Object.values(S.space.n[c.me].bases).some(b => b.reg && Object.keys(b.reg).length >= 6) },
   );
 }
 
