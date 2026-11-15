@@ -362,7 +362,7 @@ svg.bic { width: 16px; height: 16px; vertical-align: -3px; }
 .cmdr-tr .chip { font-size: 11px; }
 .cmdr-list { max-height: 52vh; overflow: auto; }
 .prog-cur .bar i { background: linear-gradient(90deg, #3a8f5a, #4fd88a); }
-.prog-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.prog-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
 .prog-col h4 { margin: 4px 0 8px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .prog { background: rgba(255, 255, 255, .03); border: 1px solid var(--line); border-radius: 9px; padding: 8px 9px; margin-bottom: 8px; }
 .prog-h { display: flex; gap: 6px; align-items: center; }
@@ -482,6 +482,45 @@ svg.bic { width: 16px; height: 16px; vertical-align: -3px; }
 .upd-badge { display: block; width: 100%; margin: 0 0 12px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--gold); background: rgba(227,181,75,.14); color: #ffd779; font-weight: 600; cursor: pointer; }
 .upd-badge:hover { background: rgba(227,181,75,.24); }
 
+/* ---------- v7: космос, поколения, друзья ---------- */
+.space-view { position: fixed; inset: 0; z-index: 40; background: #03050b; opacity: 0; transform: scale(1.06); transition: opacity .45s ease, transform .6s ease; }
+.space-view.on { opacity: 1; transform: none; }
+.space-view canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.sp-top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; background: linear-gradient(180deg, rgba(3,6,12,.9), rgba(3,6,12,0)); pointer-events: none; }
+.sp-top > * { pointer-events: auto; }
+.sp-title { font-weight: 800; letter-spacing: .12em; color: var(--gold); font-size: 18px; }
+.sp-top-r { display: flex; gap: 10px; align-items: center; }
+.sp-panel { position: absolute; top: 58px; right: 12px; bottom: 12px; width: 360px; overflow: auto; background: rgba(13, 20, 33, .9); border: 1px solid var(--line); border-radius: 12px; padding: 10px; backdrop-filter: blur(4px); }
+.sp-hint { position: absolute; left: 14px; bottom: 12px; font-size: 12px; color: var(--muted); }
+.sp-blds { display: grid; gap: 6px; margin-top: 8px; }
+.sp-bld { border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; background: #141e2f; }
+.sp-bld.has { border-color: #6b5a2a; }
+.sp-bld small { display: block; color: var(--muted); font-size: 11.5px; margin: 2px 0 5px; }
+.st-tree { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; }
+.st-col { min-width: 190px; display: flex; flex-direction: column; gap: 8px; }
+.st-tier { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.st-node { border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; background: #141e2f; opacity: .55; }
+.st-node.open { opacity: 1; cursor: pointer; border-color: #5d8fd6; }
+.st-node.open:hover { background: #1b2a42; }
+.st-node.active { opacity: 1; border-color: var(--gold); background: #2a2210; }
+.st-node.done { opacity: 1; border-color: #2f6b45; }
+.st-h { display: flex; gap: 6px; align-items: center; }
+.st-i { font-size: 18px; }
+.st-node small { display: block; color: var(--muted); font-size: 11.5px; margin: 3px 0; line-height: 1.3; }
+.st-f { font-size: 12px; }
+.gen-box { border-color: rgba(227,181,75,.45); }
+.fr-code { font-size: 26px; font-weight: 800; letter-spacing: .18em; color: var(--gold); margin-right: 10px; }
+.fr-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #1e2b40; }
+.fr-row:last-child { border-bottom: 0; }
+.fr-dot { width: 10px; height: 10px; border-radius: 50%; background: #3a4558; flex: none; }
+.fr-dot.on { background: var(--good); box-shadow: 0 0 8px var(--good); }
+.fr-name { flex: 1; min-width: 0; }
+.fr-name small { display: block; font-size: 12px; }
+.fr-acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.fr-count { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--bad); color: #fff; font-size: 11px; line-height: 18px; text-align: center; margin-left: 4px; }
+.fr-inv { position: fixed; z-index: 95; left: 50%; top: 70px; transform: translateX(-50%); display: flex; gap: 14px; align-items: center; background: var(--panel2); border: 1px solid var(--gold); border-radius: 12px; padding: 12px 16px; box-shadow: 0 14px 40px rgba(0,0,0,.6); max-width: calc(100% - 32px); }
+@media (max-width: 900px) { .sp-panel { top: auto; left: 12px; width: auto; height: 45%; } }
+
 </style>
 </head>
 <body>
@@ -531,6 +570,7 @@ svg.bic { width: 16px; height: 16px; vertical-align: -3px; }
       <button data-win="diplomacy" title="Дипломатия (D)">🤝<span>Дипломатия</span></button>
       <button data-win="programs" title="Национальный курс (N)" id="btnProg">🎯<span>Курс</span></button>
       <button data-win="un" title="Мировой совет (U)" id="btnUN">🌐<span>Совет</span></button>
+      <button id="btnSpace" title="Космос (K)">🚀<span>Космос</span></button>
       <button data-win="tech" title="Технологии (T)">🔬<span>Наука</span></button>
       <button data-win="log" title="Журнал (L)">📜<span>Журнал</span></button>
       <button data-win="menu" title="Меню (Esc)">☰</button>
@@ -611,7 +651,7 @@ const AUTH_CONFIG = {
    • браузерная версия — предлагает обновить страницу.
    В сетевой игре все участники должны быть на одной версии (см. net.js). */
 'use strict';
-const GAME_VERSION = '1.2.0';
+const GAME_VERSION = '1.3.0';
 const SITE_URL = 'https://azimkhanraev-ui.github.io/mirovaya-derzhava/';
 const SETUP_URL = 'https://github.com/azimkhanraev-ui/mirovaya-derzhava/releases/latest/download/MirovayaDerzhava-Setup.exe';
 
@@ -1841,7 +1881,7 @@ function cleanFleet(f) {
 }
 
 function techMul(n, cat) {
-  return 1 + 0.08 * n.tech[CAT_INFO[cat].branch];
+  return 1 + 0.08 * n.tech[CAT_INFO[cat].branch] + 0.02 * (n.tech.ai || 0);
 }
 function nationCombatMul(nid) {
   const n = nat(nid);
@@ -1880,7 +1920,7 @@ function armyPower(a, mode, terr) {
 // Дистанция по своей/союзной территории; дальше радиуса — растянутые коммуникации, нет пути — котёл.
 G.supCache = {};
 G.supVer = 0;
-function supplyRange(nid) { return 3 + Math.floor(nat(nid).tech.ind / 2) + mod(nid, 'supply'); }
+function supplyRange(nid) { return 3 + Math.floor(nat(nid).tech.ind / 2) + Math.floor((nat(nid).tech.logi || 0) / 2) + mod(nid, 'supply'); }
 function supplyMap(nid) {
   const c = G.supCache[nid];
   if (c && c.v === G.supVer && c.t === S.turn) return c.d;
@@ -2048,7 +2088,7 @@ function economyCalc(nid) {
   let base = 0;
   mine.forEach(id => { base += provIncome(id, n); });
   const g = GOVS[n.gov], e = ECON_MODELS[n.econ];
-  const mods = g.income * e.income * (1 + 0.06 * n.tech.econ) * (1 + 0.02 * (capB.gov || 0) + 0.04 * (capB.stock || 0)) *
+  const mods = g.income * e.income * (1 + 0.06 * n.tech.econ + 0.04 * (n.tech.energy || 0)) * (1 + 0.02 * (capB.gov || 0) + 0.04 * (capB.stock || 0)) *
     (0.6 + n.stab / 250) * (1 + 0.03 * Math.min(tradesOf(nid), 8)) * (1 - n.consc * 2) *
     (n.ai ? diffOf().ai : diffOf().player) * (1 + mod(nid, 'income'));
   const gross = base * mods;
@@ -2084,6 +2124,7 @@ function stabilityTarget(nid) {
   t += n.social * 120 - Math.max(0, n.tax - 0.25) * 110 - Math.max(0, n.consc - 0.03) * 110 * GOVS[n.gov].weary - n.weary * 0.5;
   t -= mine.length ? occ / mine.length * 20 : 0;
   if (n.gold < 0) t -= 15;
+  t += (n.tech.agro || 0);
   t += mod(nid, 'stab') + Math.min(6, bldSum(nid, 'theater')) + Math.min(5, bldSum(nid, 'school') * 0.5) + bldSum(nid, 'spacecenter') * 3;
   return clamp(t, 0, 100);
 }
@@ -2091,7 +2132,7 @@ function researchPoints(nid) {
   let u = 0;
   provsOf(nid).forEach(id => { const b = S.prov[id].b; u += (b.univ || 0) * 2 + (b.lab || 0) * 5 + (b.school || 0) + (b.cyber || 0) * 3 + (b.spacecenter || 0) * 10; });
   const e = nat(nid).last.gross || 0;
-  return (1 + u + e * 0.02) * (1 + mod(nid, 'research') + 0.04 * (nat(nid).tech.elec || 0));
+  return (1 + u + e * 0.02) * (1 + mod(nid, 'research') + 0.04 * (nat(nid).tech.elec || 0) + 0.06 * (nat(nid).tech.ai || 0)) * (1 + 0.1 * ((nat(nid).gen || 1) - 1));
 }
 function techCost(level) {
   return Math.round(30 * Math.pow(level + 1, 1.6));
@@ -2154,7 +2195,7 @@ function prodCapacity(nid, p, cat) {
   if (cat === 'inf' && n.capital === p) cap += 3000;
   if (cat === 'ship' && !prov(p).sea.length) return 0;
   const energy = 1 + 0.1 * (ps.b.power || 0) + 0.25 * (ps.b.nuclearp || 0);
-  return cap * energy * (1 + 0.1 * n.tech.ind) * GOVS[n.gov].prod * ECON_MODELS[n.econ].prod * (ps.occ > 0 ? 0.3 : 1) * (1 + mod(nid, 'prod'));
+  return cap * energy * (1 + 0.1 * n.tech.ind + 0.05 * (n.tech.energy || 0)) * GOVS[n.gov].prod * ECON_MODELS[n.econ].prod * (ps.occ > 0 ? 0.3 : 1) * (1 + mod(nid, 'prod'));
 }
 function unitCost(u) { return UNITS[u].cost * P().costMul; }
 function canRecruit(nid, p, u, count) {
@@ -2697,7 +2738,7 @@ function nuclearStrike(nid, p) {
   n.nukes--;
   const ps = S.prov[p];
   const abm = (S.prov[T.capital] && S.prov[T.capital].o === target ? S.prov[T.capital].b.abm || 0 : 0);
-  if (Math.random() < Math.min(0.8, (0.15 * (ps.b.aa || 0) + 0.2 * abm) * (1 + 0.1 * tl(target, 'rocket')) * (tl(nid, 'nuke') >= 5 ? 0.5 : 1))) {
+  if (Math.random() < Math.min(0.8, (0.15 * (ps.b.aa || 0) + 0.2 * abm + (typeof spaceDefense === 'function' ? spaceDefense(target) : 0)) * (1 + 0.1 * tl(target, 'rocket')) * (tl(nid, 'nuke') >= 5 ? 0.5 : 1))) {
     log(`☢ ПВО ${T.name} перехватила ядерную ракету ${n.name}, летевшую на ${provName(p)}!`, 'big', null);
     fx({ k: 'intercept', p });
     worldReactsToNuke(nid, target, 0.5);
@@ -2963,7 +3004,7 @@ function endTurnInner() {
     provsOf(n.id).forEach(id => {
       const ps = S.prov[id];
       hosp += ps.b.hospital || 0;
-      ps.pop *= 1 + growth + (ps.b.farm || 0) * 0.0002 + (ps.b.housing || 0) * 0.0003 + (ps.b.hospital || 0) * 0.0002 + n.social * 0.002 + 0.0001 * (n.tech.med || 0) - (war ? 0.0004 : 0);
+      ps.pop *= 1 + growth + (ps.b.farm || 0) * 0.0002 + (ps.b.housing || 0) * 0.0003 + (ps.b.hospital || 0) * 0.0002 + n.social * 0.002 + 0.0001 * (n.tech.med || 0) + 0.00012 * (n.tech.agro || 0) - (war ? 0.0004 : 0);
     });
     // призывники (госпитали возвращают раненых в строй)
     const cap = manpowerCap(n.id);
@@ -2980,20 +3021,24 @@ function endTurnInner() {
     n.res.pts += researchPoints(n.id);
     if (n.res.bank && n.res.bank[n.res.branch]) { n.res.pts += n.res.bank[n.res.branch]; delete n.res.bank[n.res.branch]; }
     const b = n.res.branch, lvl = n.tech[b];
-    if (lvl < TECH_MAX && n.res.pts >= techCost(lvl)) {
+    if (lvl < techCap(n.id) && n.res.pts >= techCost(lvl)) {
       n.res.pts -= techCost(lvl);
       n.tech[b]++;
-      if (isHuman(n.id)) log(`🔬 Открыта технология: ${(TECH_LV[b] || [])[n.tech[b] - 1] || ''} (${TECHS.find(t => t.id === b).name} ур. ${n.tech[b]})`, 'good', n.id);
+      if (isHuman(n.id)) log(`🔬 Открыта технология: ${techName(b, n.tech[b] - 1)} (${TECHS.find(t => t.id === b).name} ур. ${n.tech[b]})`, 'good', n.id);
       techDone(n);
       if (n.ai) AI.pickResearch(n.id);
-    } else if (lvl >= TECH_MAX) { techDone(n); if (n.ai) AI.pickResearch(n.id); }
+    } else if (lvl >= techCap(n.id)) { techDone(n); if (n.ai) AI.pickResearch(n.id); }
     // ядерные боеголовки
     let silo = 0;
     provsOf(n.id).forEach(id => { silo += S.prov[id].b.silo || 0; });
     if (silo > 0) {
-      n.nukeProg += silo;
+      n.nukeProg += silo * 2 * (tl(n.id, 'nuke') >= 5 ? 1.5 : 1);   // уровень базы — боеголовка за 3 хода (с «Разделяющимися боеголовками» — за 2)
       const c = 150 * P().costMul;
-      if (n.nukeProg >= 6 && n.gold >= c) { n.nukeProg -= 6; n.gold -= c; n.nukes++; if (isHuman(n.id)) log('☢ Произведена новая ядерная боеголовка.', 'info', n.id); }
+      // каждый уровень ракетной базы — своя линия сборки: за ход может выйти несколько боеголовок
+      let made = 0;
+      while (n.nukeProg >= 6 && n.gold >= c) { n.nukeProg -= 6; n.gold -= c; n.nukes++; made++; }
+      if (n.nukeProg >= 6) n.nukeProg = Math.min(n.nukeProg, 6 + silo * 6);   // нет денег — запас готовых корпусов ограничен
+      if (made && isHuman(n.id)) log(`☢ Произведено ядерных боеголовок: ${made} (всего ${n.nukes}).`, 'info', n.id);
     }
     // национальный курс и командиры
     programTick(n);
@@ -3054,7 +3099,7 @@ function attrition() {
     if (sup === 'cut' && !a.cut && isHuman(a.o)) log(`⚠ Армия в ${provName(a.p)} попала в котёл: нет снабжения (−30% силы, потери 4% в ход). Прорывайтесь к своим!`, 'bad', a.o);
     a.cut = sup === 'cut';
     if ([a.p].concat(prov(a.p).n).some(x => S.prov[x].o === a.o && S.prov[x].b.depot)) at *= 0.5;
-    at *= (hasTrait(cm, 'logist') ? 0.5 : 1) * (1 - 0.06 * ((cm && cm.log) || 0)) * (1 - mod(a.o, 'attr'));
+    at *= (1 - Math.min(0.5, 0.06 * (nat(a.o).tech.logi || 0))) * (hasTrait(cm, 'logist') ? 0.5 : 1) * (1 - 0.06 * ((cm && cm.log) || 0)) * (1 - mod(a.o, 'attr'));
     if (at <= 0) return;
     const before = mpOf(a.u);
     applyLosses(a.u, at);
@@ -3421,7 +3466,13 @@ function progState(nid, id) {
   if (req.length && !(P0.alt ? req.some(x => n.done.includes(x)) : req.every(x => n.done.includes(x)))) return 'locked';
   return 'open';
 }
-function progTurns(nid, id) { return Math.max(2, Math.round(PROG[id].t * (nat(nid).minor ? 0.8 : 1))); }
+function progTurns(nid, id) { return Math.max(2, Math.round(PROG[id].t * (nat(nid).minor ? 0.8 : 1) * (1 + 0.2 * ((nat(nid).progGen || 1) - 1)))); }
+// поколение курса: бонусы программ растут на 50% с каждым новым поколением
+function progEff(n, P0) {
+  const k = 1 + 0.5 * ((n.progGen || 1) - 1), out = {};
+  for (const x in P0.eff || {}) out[x] = x === 'stab' || x === 'supply' || x === 'cmdrCap' || x === 'cmdrQ' ? Math.round(P0.eff[x] * k) : P0.eff[x] * k;
+  return out;
+}
 function startProgram(nid, id) {
   const n = nat(nid);
   if (!PROG[id]) return 'Нет такой программы';
@@ -3444,7 +3495,7 @@ function programTick(n) {
   const P0 = PROG[n.prog.id];
   n.done.push(P0.id);
   n.prog = null;
-  addMods(n, P0.eff || {});
+  addMods(n, progEff(n, P0));
   if (P0.once) P0.once(n);
   if (isHuman(n.id)) {
     log(`🎯 Национальный курс: программа «${P0.name}» выполнена — ${P0.desc}.`, 'good', n.id);
@@ -3454,10 +3505,10 @@ function programTick(n) {
 // ИИ: приоритет веток по характеру страны
 function AI_pickProgram(n) {
   const open = PROGRAMS.filter(p => progState(n.id, p.id) === 'open');
-  if (!open.length) return;
+  if (!open.length) { if (typeof courseGen === 'function' && !n.prog) courseGen(n.id); return; }
   const war = enemiesOf(n.id).length > 0;
   const fleet = Object.values(S.fleets).some(f => f.o === n.id);
-  const w = p => (p.br === 'mil' ? (war ? 3 : 1.6) + n.aggr * 3 : p.br === 'ind' ? 2.2 : p.br === 'pol' ? (n.stab < 45 ? 3 : 1.4) : fleet ? 1.5 : 0.6) * (1 + Math.random()) / Math.sqrt(p.t);
+  const w = p => (p.br === 'mil' ? (war ? 3 : 1.6) + n.aggr * 3 : p.br === 'ind' ? 2.2 : p.br === 'pol' ? (n.stab < 45 ? 3 : 1.4) : p.br === 'space' ? (n.major && tl(n.id, 'rocket') >= 3 ? 1.2 : 0.2) : fleet ? 1.5 : 0.6) * (1 + Math.random()) / Math.sqrt(p.t);
   const best = open.sort((a, b) => w(b) - w(a))[0];
   startProgram(n.id, best.id);
 }
@@ -3521,6 +3572,16 @@ const TECH_START = {
   2025: { nuke: 3, rocket: 4, elec: 5, med: 5, doct: 4 },
 };
 const tl = (nid, b) => (S.nations[nid] && S.nations[nid].tech[b]) || 0;
+// поколения науки: в каждом поколении у ветки 6 новых уровней (TECH_MAX — уровней в поколении)
+const techCap = nid => TECH_MAX * ((S.nations[nid] && S.nations[nid].gen) || 1);
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+// название уровня i (0, 1, 2…): первые два поколения — свои названия, дальше — «Mk» от второго
+function techName(b, i) {
+  const L = TECH_LV[b] || [];
+  if (i < L.length) return L[i];
+  const base = L[TECH_MAX + (i % TECH_MAX)] || L[i % TECH_MAX] || 'Уровень ' + (i + 1);
+  return base + ' Mk ' + (ROMAN[Math.floor(i / TECH_MAX) + 1] || Math.floor(i / TECH_MAX) + 1);
+}
 
 // ================================================================= новые здания
 const NEW_BUILDINGS = [
@@ -3537,7 +3598,7 @@ const NEW_BUILDINGS = [
 NEW_BUILDINGS.forEach(b => { if (!BLD[b.id]) { BUILDINGS.push(b); BLD[b.id] = b; } });
 // ядерные и ракетные объекты теперь открывает наука, а не эпоха
 Object.assign(BLD.nuclearp, { minPeriod: 1939, req: { b: { univ: 1, factory: 2 }, tech: { nuke: 2 } } });
-Object.assign(BLD.silo, { minPeriod: 1939, req: { tech: { nuke: 3, ind: 2 } }, desc: 'Производит ядерные боеголовки: 1 за 6 ходов за уровень (стоимость 150). Нужна ядерная программа ур. 3.' });
+Object.assign(BLD.silo, { minPeriod: 1939, req: { tech: { nuke: 3, ind: 2 } }, desc: 'Производит ядерные боеголовки: каждый уровень — 1 боеголовка за 3 хода (стоимость 150). Несколько баз работают одновременно — за ход может выйти несколько боеголовок. Нужна ядерная программа ур. 3.' });
 Object.assign(BLD.abm, { minPeriod: 1939, req: { tech: { rocket: 3 } } });
 Object.assign(BLD.radar, { req: { tech: { elec: 1 } } });
 
@@ -3667,7 +3728,7 @@ function spyOp(nid, target, op) {
   if (op === 'net') { n.spy[target] = net + 1; res = `Сеть в ${T.name}: ур. ${net + 1}`; }
   if (op === 'unrest') { T.stab = Math.max(0, T.stab - 6); T.weary = clamp(T.weary + 5, 0, 100); res = `${T.name}: стабильность −6`; if (isHuman(target)) log('📰 В стране волнения: кто-то подогревает недовольство (−6 стабильности).', 'bad', target); }
   if (op === 'steal') {
-    const br = TECHS.filter(t => T.tech[t.id] > n.tech[t.id] && n.tech[t.id] < TECH_MAX).sort((a, b) => (T.tech[b.id] - n.tech[b.id]) - (T.tech[a.id] - n.tech[a.id]))[0];
+    const br = TECHS.filter(t => T.tech[t.id] > n.tech[t.id] && n.tech[t.id] < techCap(nid)).sort((a, b) => (T.tech[b.id] - n.tech[b.id]) - (T.tech[a.id] - n.tech[a.id]))[0];
     if (!br) res = 'Ничего ценного: мы не отстаём';
     else {
       n.res.bank = n.res.bank || {};
@@ -4001,7 +4062,7 @@ function features2Tick() {
 // окончание исследования: следующий пункт из очереди
 function techDone(n) {
   n.res.q = n.res.q || [];
-  while (n.res.q.length && (n.tech[n.res.q[0]] >= TECH_MAX || n.res.q[0] === n.res.branch)) n.res.q.shift();
+  while (n.res.q.length && (n.tech[n.res.q[0]] >= techCap(n.id) || n.res.q[0] === n.res.branch)) n.res.q.shift();
   if (n.res.q.length) n.res.branch = n.res.q.shift();
   if (n.tech.nuke >= 3 && n.nukes === 0 && !n.nukeFirst) {
     n.nukeFirst = true;
@@ -4308,13 +4369,13 @@ const AI = {
   pickResearch(nid) {
     const n = nat(nid);
     const war = enemiesOf(nid).length > 0;
-    const w = { inf: 1, arm: 1.1, art: 0.9, air: 1, navy: 0.5, econ: 1.4, ind: 1.4, elec: 0.9, med: 0.8, doct: 1, rocket: S.period >= 1962 ? 0.7 : 0.3, nuke: n.major && S.period >= 1939 ? 0.6 : 0.05 };
+    const w = { inf: 1, arm: 1.1, art: 0.9, air: 1, navy: 0.5, econ: 1.4, ind: 1.4, elec: 0.9, med: 0.8, doct: 1, rocket: S.period >= 1962 ? 0.7 : 0.3, nuke: n.major && S.period >= 1939 ? 0.6 : 0.05, energy: 1.1, agro: 0.8, logi: 0.8, ai: S.period >= 1962 ? 0.8 : 0.3 };
     if (war) { w.econ = 0.6; w.ind = 1; w.arm = 1.5; w.air = 1.3; }
     if (provsOf(nid).some(id => prov(id).sea.length) && !n.minor) w.navy = 0.9;
     let best = null, bs = -1;
     TECHS.forEach(t => {
-      if (n.tech[t.id] >= TECH_MAX) return;
-      const s = w[t.id] / (1 + n.tech[t.id]) * rnd(0.8, 1.2);
+      if (n.tech[t.id] >= techCap(nid)) return;
+      const s = (w[t.id] || 0.7) / (1 + n.tech[t.id]) * rnd(0.8, 1.2);
       if (s > bs) { bs = s; best = t.id; }
     });
     if (best) n.res.branch = best;
@@ -5635,6 +5696,455 @@ if (typeof AI !== 'undefined') {
   const side0 = AI.side;
   AI.side = function (nid) { return side0.call(this, nid) + guarantorsOf(nid).reduce((s, g) => s + this.pw(g) * 0.6, 0); };
 }
+
+</script>
+<script>
+/* v7: больше науки (новые ветки), поколения науки и национального курса, космическая ветка курса. */
+'use strict';
+
+// ================================================================= новые ветки науки
+TECHS.push(
+  { id: 'energy', name: 'Энергетика', icon: '⚡', cat: 'civ', desc: '+4% к доходу и +5% к военному производству за уровень.' },
+  { id: 'agro', name: 'Сельское хозяйство', icon: '🌾', cat: 'civ', desc: '+1 к стабильности и быстрее рост населения за уровень.' },
+  { id: 'logi', name: 'Логистика', icon: '🚚', cat: 'mil', desc: '+1 к радиусу снабжения за 2 уровня, −6% небоевых потерь за уровень.' },
+  { id: 'ai', name: 'Искусственный интеллект', icon: '🤖', cat: 'spec', desc: '+6% к скорости науки и +2% к силе всех войск за уровень. Ускоряет космическую программу.' },
+);
+Object.assign(TECH_CAT, { energy: 'civ', agro: 'civ', logi: 'mil', ai: 'spec' });
+Object.assign(TECH_START[1914], { energy: 0, agro: 0, logi: 0, ai: 0 });
+Object.assign(TECH_START[1939], { energy: 1, agro: 1, logi: 1, ai: 0 });
+Object.assign(TECH_START[1962], { energy: 2, agro: 2, logi: 2, ai: 0 });
+Object.assign(TECH_START[2025], { energy: 4, agro: 4, logi: 4, ai: 2 });
+
+// названия: первое поколение (новые ветки) и второе поколение (все ветки)
+Object.assign(TECH_LV, {
+  energy: ['Паровые турбины', 'Электросети', 'Гидроэлектростанции', 'Энергосистема страны', 'Возобновляемая энергия', 'Умные сети'],
+  agro: ['Механизация', 'Удобрения', 'Зелёная революция', 'Агрохолдинги', 'Генная селекция', 'Вертикальные фермы'],
+  logi: ['Конные обозы', 'Автоколонны', 'Железнодорожные войска', 'Воздушный мост', 'Контейнерная логистика', 'Автономный транспорт'],
+  ai: ['Вычислительные машины', 'Экспертные системы', 'Нейросети', 'Машинное зрение', 'Автономные системы', 'Сильный ИИ'],
+});
+const TECH_LV_GEN2 = {
+  inf: ['Экзоскелеты', 'Боевые импланты', 'Пехота-невидимка', 'Роботы-пехотинцы', 'Кибер-гвардия', 'Солдат-универсал'],
+  arm: ['Танки на воздушной подушке', 'Активная броня', 'Рельсовые пушки', 'Шагающие машины', 'Нанобраня', 'Танк-крепость'],
+  art: ['Электромагнитные орудия', 'Плазменные снаряды', 'Гиперзвуковые ракеты', 'Орбитальная артиллерия', 'Лазерные батареи', 'Кинетический удар'],
+  air: ['Гиперзвуковые самолёты', 'Рои дронов', 'Аэрокосмические истребители', 'Лазерное вооружение', 'Невидимые бомбардировщики', 'Суборбитальные крылья'],
+  navy: ['Подводные авианосцы', 'Корабли на электротяге', 'Рельсотронные крейсеры', 'Автономные флотилии', 'Подводные крепости', 'Океанские города-базы'],
+  econ: ['Криптофинансы', 'Глобальные платформы', 'Экономика данных', 'Безналичное государство', 'Пост-дефицит', 'Экономика изобилия'],
+  ind: ['3D-печать заводов', 'Молекулярная сборка', 'Самовоспроизводящиеся линии', 'Орбитальные верфи', 'Нанофабрики', 'Полная автоматизация'],
+  nuke: ['Малые реакторы', 'Торий', 'Термоядерный синтез', 'Антиядерный щит', 'Чистый термояд', 'Звёздная энергия'],
+  rocket: ['Многоразовые ракеты', 'Гиперзвуковые комплексы', 'Лазерная ПРО', 'Космические перехватчики', 'Кинетическая защита', 'Планетарный щит'],
+  elec: ['Квантовые компьютеры', 'Квантовая связь', 'Нейроинтерфейсы', 'Глобальная сеть датчиков', 'Цифровые двойники', 'Ноосфера'],
+  med: ['Регенерация тканей', 'Генная терапия', 'Наномедицина', 'Продление жизни', 'Искусственные органы', 'Бессмертие клеток'],
+  doct: ['Кибервойна', 'Гибридные операции', 'Роевые тактики', 'Космическое командование', 'Война алгоритмов', 'Абсолютное превосходство'],
+  energy: ['Термоядерные станции', 'Сверхпроводники', 'Беспроводная энергия', 'Орбитальные электростанции', 'Антиматерия', 'Энергия звёзд'],
+  agro: ['Искусственное мясо', 'Океанские фермы', 'Климат-контроль', 'Синтетическая еда', 'Терраформирование почв', 'Сады на орбите'],
+  logi: ['Гиперлупы', 'Дроны-курьеры', 'Тяжёлые дирижабли', 'Суборбитальная доставка', 'Телепортация грузов', 'Мгновенная логистика'],
+  ai: ['Самообучающиеся системы', 'ИИ-генералы', 'ИИ-учёные', 'Коллективный разум', 'Сверхинтеллект', 'Технологическая сингулярность'],
+};
+for (const b in TECH_LV_GEN2) TECH_LV[b] = (TECH_LV[b] || []).slice(0, TECH_MAX).concat(TECH_LV_GEN2[b]);
+
+// ================================================================= поколения науки
+const GEN_NAMES = ['', 'Индустриальное', 'Информационное', 'Космическое', 'Звёздное', 'Галактическое'];
+const genName = g => `${ROMAN[g] || g} поколение${GEN_NAMES[g] ? ' — ' + GEN_NAMES[g] : ''}`;
+function canAdvanceGen(nid) {
+  const n = nat(nid), cap = techCap(nid);
+  return TECHS.every(t => (n.tech[t.id] || 0) >= cap);
+}
+function genLeft(nid) {
+  const n = nat(nid), cap = techCap(nid);
+  return TECHS.reduce((s, t) => s + Math.max(0, cap - (n.tech[t.id] || 0)), 0);
+}
+function advanceGen(nid) {
+  const n = nat(nid);
+  if (!canAdvanceGen(nid)) return `Сначала изучите все ветки до конца поколения (осталось уровней: ${genLeft(nid)})`;
+  n.gen = (n.gen || 1) + 1;
+  addMods(n, { income: 0.05, prod: 0.05, atk: 0.03, def: 0.03 });
+  n.stab = Math.min(100, n.stab + 5);
+  n.res.q = [];
+  log(`🔬 ${n.name} переходит в ${genName(n.gen)} науки!`, 'big', null);
+  if (n.ai) AI.pickResearch(nid);
+  else n.res.branch = TECHS[0].id;
+  return null;
+}
+
+// ================================================================= поколения национального курса
+function courseDone(nid) {
+  const n = nat(nid);
+  return !n.prog && !PROGRAMS.some(p => progState(nid, p.id) === 'open');
+}
+function courseGen(nid) {
+  const n = nat(nid);
+  if (!courseDone(nid)) return 'Сначала завершите все доступные программы курса';
+  n.progGen = (n.progGen || 1) + 1;
+  n.done = [];
+  n.stab = Math.min(100, n.stab + 3);
+  if (isHuman(nid)) log(`🎯 ${n.name}: начинается национальный курс, ${ROMAN[n.progGen] || n.progGen} поколение — все программы доступны снова, их бонусы сильнее на ${(n.progGen - 1) * 50}%.`, 'big', nid);
+  return null;
+}
+
+// космическая ветка курса
+PROGRAM_BRANCHES.space = '🚀 Космос';
+PROGRAMS.push(
+  { id: 'spc1', br: 'space', t: 5, name: 'Космическое агентство', icon: '🛰', eff: { space: 0.2 }, desc: '+20% к космическим исследованиям' },
+  { id: 'spc2', br: 'space', t: 6, req: ['spc1'], name: 'Звёздный городок', icon: '👨‍🚀', eff: { space: 0.15, launch: 0.1 }, desc: '+15% к космической науке, запуски дешевле на 10%' },
+  { id: 'spc3', br: 'space', t: 6, req: ['spc2'], excl: ['spc4'], name: 'Космическая гонка', icon: '🏁', eff: { space: 0.3 }, desc: '+30% к космической науке — быть первыми!' },
+  { id: 'spc4', br: 'space', t: 6, req: ['spc2'], excl: ['spc3'], name: 'Международная станция', icon: '🤝', eff: { space: 0.15, launch: 0.15 }, once: n => Object.values(S.nations).forEach(x => { if (x.alive && x.major && x.id !== n.id && !atWar(x.id, n.id)) addRel(n.id, x.id, 10); }), desc: '+15% к науке, запуски −15%, +10 к отношениям с державами' },
+  { id: 'spc5', br: 'space', t: 7, req: ['spc3', 'spc4'], alt: true, name: 'Космическая индустрия', icon: '🏭', eff: { spaceInc: 0.3, launch: 0.1 }, desc: 'Внеземные базы приносят на 30% больше, запуски −10%' },
+  { id: 'spc6', br: 'space', t: 8, req: ['spc5'], name: 'Человечество — к звёздам', icon: '🌌', eff: { space: 0.25, spaceInc: 0.2, stab: 3 }, desc: '+25% к космической науке, +20% дохода баз, +3 стабильности' },
+);
+PROG.spc1 = PROGRAMS.find(p => p.id === 'spc1');
+PROGRAMS.filter(p => p.br === 'space').forEach(p => { PROG[p.id] = p; });
+
+// ИИ: переход в новое поколение науки
+(function () {
+  const pick0 = AI.pickResearch;
+  AI.pickResearch = function (nid) {
+    if (canAdvanceGen(nid)) { advanceGen(nid); return; }
+    return pick0.call(this, nid);
+  };
+})();
+
+Object.assign(CMD, {
+  techGen(nid) { const e = advanceGen(nid); return e ? E(e) : R(`🔬 Наука: ${genName(nat(nid).gen)}! Доход и производство +5%, войска +3%, наука быстрее.`); },
+  courseGen(nid) { const e = courseGen(nid); return e ? E(e) : R(`🎯 Новый национальный курс: ${ROMAN[nat(nid).progGen]} поколение`); },
+});
+
+</script>
+<script>
+/* v7: космос. Отдельная космическая наука (очки космоса), космическая гонка «кто первый»,
+   экспедиции к Луне и планетам, внеземные базы со своими зданиями. Состояние — S.space. */
+'use strict';
+
+// ================================================================= космическая наука
+// tier — колонка в дереве, req — что нужно изучить раньше, need — уровень «Ракет и космоса» в обычной науке
+const SPACE_TECH = [
+  { id: 'rockets', tier: 0, name: 'Ракетные двигатели', icon: '🔥', cost: 40, need: 3, desc: 'Основа космонавтики. Открывает космическую программу.' },
+  { id: 'sat', tier: 1, req: ['rockets'], name: 'Искусственный спутник', icon: '🛰', cost: 70, desc: 'Первый спутник: престиж, +5% к науке страны.', first: 'Первый искусственный спутник Земли' },
+  { id: 'manned', tier: 2, req: ['sat'], name: 'Пилотируемый полёт', icon: '👨‍🚀', cost: 120, desc: 'Человек в космосе! Большой престиж.', first: 'Первый человек в космосе' },
+  { id: 'spysat', tier: 2, req: ['sat'], name: 'Спутники-шпионы', icon: '🔭', cost: 110, desc: '+15% к успеху разведки, +1 к росту агентурных сетей.' },
+  { id: 'gps', tier: 2, req: ['sat'], name: 'Навигационные спутники', icon: '📍', cost: 130, desc: '+1 к радиусу снабжения, +3% к атаке.' },
+  { id: 'station', tier: 3, req: ['manned'], name: 'Орбитальная станция', icon: '🛸', cost: 180, desc: '+10% к науке страны, +3 очка космоса.', first: 'Первая орбитальная станция' },
+  { id: 'lunar', tier: 3, req: ['manned'], name: 'Лунная программа', icon: '🌙', cost: 220, desc: 'Позволяет отправить экспедицию на Луну.' },
+  { id: 'shuttle', tier: 4, req: ['station'], name: 'Многоразовые корабли', icon: '🚀', cost: 260, desc: 'Экспедиции на 25% дешевле.' },
+  { id: 'sdi', tier: 4, req: ['station'], name: 'Орбитальное оружие', icon: '🎯', cost: 320, desc: '+15% к перехвату ядерных ракет, открывает орбитальную оборону на базах.' },
+  { id: 'lunarBase', tier: 4, req: ['lunar'], name: 'Лунные базы', icon: '🏠', cost: 300, desc: 'Строительство на Луне: жилые модули, шахты, станции.' },
+  { id: 'he3', tier: 5, req: ['lunarBase'], name: 'Добыча гелия-3', icon: '⛏', cost: 380, desc: 'Лунные шахты приносят вдвое больше.' },
+  { id: 'mars', tier: 5, req: ['lunarBase'], name: 'Марсианская программа', icon: '🔴', cost: 450, desc: 'Экспедиция на Марс.' },
+  { id: 'marsCol', tier: 6, req: ['mars'], name: 'Колонизация Марса', icon: '🏙', cost: 600, desc: 'Строительство на Марсе, купола-города.', first: 'Первая колония на Марсе' },
+  { id: 'venus', tier: 6, req: ['mars'], name: 'Облачные города Венеры', icon: '🟡', cost: 650, desc: 'Экспедиция и базы в облаках Венеры.' },
+  { id: 'asteroid', tier: 7, req: ['marsCol'], name: 'Пояс астероидов', icon: '☄', cost: 700, desc: 'Экспедиция на Цереру и добыча редких металлов.' },
+  { id: 'terraform', tier: 7, req: ['marsCol'], name: 'Терраформирование', icon: '🌱', cost: 800, desc: 'Здания на Марсе приносят на 50% больше.' },
+  { id: 'fusion', tier: 8, req: ['asteroid'], name: 'Термоядерный двигатель', icon: '☀', cost: 900, desc: 'Полёты вдвое быстрее.' },
+  { id: 'jupiter', tier: 8, req: ['asteroid'], name: 'Экспедиция к Юпитеру', icon: '🟠', cost: 1000, desc: 'Базы на Европе — ледяном спутнике Юпитера.' },
+  { id: 'titan', tier: 9, req: ['jupiter'], name: 'Титан', icon: '🪐', cost: 1200, desc: 'Базы на Титане — спутнике Сатурна с озёрами метана.' },
+  { id: 'starship', tier: 10, req: ['fusion', 'titan'], name: 'Межзвёздный корабль', icon: '🌌', cost: 2000, desc: 'Величайшее достижение цивилизации: +10 стабильности, +10% ко всему.', first: 'Первый межзвёздный корабль' },
+];
+const STECH = Object.fromEntries(SPACE_TECH.map(t => [t.id, t]));
+
+// небесные тела: orbit — радиус орбиты на схеме, around — вокруг какой планеты
+const BODIES = {
+  moon: { name: 'Луна', icon: '🌙', color: '#cfd2d6', size: 5, around: 'earth', orbit: 26, speed: 6, tech: 'lunar', base: 'lunarBase', turns: 3, cost: 160, res: 'гелий-3, водяной лёд', mine: 4, fuel: 2, desc: 'Ближайшее небесное тело. Плацдарм для полётов дальше.' },
+  venus: { name: 'Венера', icon: '🟡', color: '#e8c56a', size: 9, orbit: 105, speed: 0.6, tech: 'venus', base: 'venus', turns: 5, cost: 450, res: 'кислоты, облачные города', mine: 2, fuel: 0, desc: 'Раскалённая поверхность, но в облаках на высоте 50 км — земное давление и температура.' },
+  mars: { name: 'Марс', icon: '🔴', color: '#d9653b', size: 7, orbit: 205, speed: 0.25, tech: 'mars', base: 'marsCol', turns: 6, cost: 400, res: 'железо, вода, углекислый газ', mine: 3, steel: 4, fuel: 2, desc: 'Красная планета. Здесь можно строить купола-города и со временем терраформировать.' },
+  ceres: { name: 'Церера', icon: '☄', color: '#9a8f86', size: 4, orbit: 260, speed: 0.16, tech: 'asteroid', base: 'asteroid', turns: 8, cost: 500, res: 'платина, редкие металлы', mine: 8, steel: 6, fuel: 1, desc: 'Карликовая планета в поясе астероидов — кладовая редких металлов.' },
+  europa: { name: 'Европа', icon: '🧊', color: '#d8e4ef', size: 4, around: 'jupiter', orbit: 30, speed: 3, tech: 'jupiter', base: 'jupiter', turns: 10, cost: 700, res: 'подлёдный океан', mine: 4, fuel: 6, desc: 'Ледяной спутник Юпитера. Под коркой льда — океан воды.' },
+  titan: { name: 'Титан', icon: '🪐', color: '#e0a64a', size: 5, around: 'saturn', orbit: 34, speed: 2, tech: 'titan', base: 'titan', turns: 12, cost: 900, res: 'метановые озёра', mine: 4, fuel: 9, oil: 8, desc: 'Спутник Сатурна с плотной атмосферой и озёрами жидкого метана.' },
+};
+// планеты-«ориентиры» для схемы (без баз)
+const PLANETS = {
+  mercury: { name: 'Меркурий', color: '#a7a19a', size: 4, orbit: 62, speed: 1.2 },
+  earth: { name: 'Земля', color: '#3f8fe6', size: 9, orbit: 150, speed: 0.4 },
+  jupiter: { name: 'Юпитер', color: '#d9a87a', size: 18, orbit: 330, speed: 0.08 },
+  saturn: { name: 'Сатурн', color: '#e5cf8f', size: 15, orbit: 400, speed: 0.05, ring: 1 },
+};
+
+// здания внеземных баз
+const SPACE_BLD = [
+  { id: 'hab', name: 'Жилой модуль', icon: '🏠', cost: 60, turns: 2, max: 5, desc: '+2 места под здания за уровень.' },
+  { id: 'mine', name: 'Шахта', icon: '⛏', cost: 100, turns: 3, max: 5, desc: 'Добыча ресурсов тела: доход (и сталь, где есть металлы).' },
+  { id: 'lab', name: 'Научная станция', icon: '🔬', cost: 120, turns: 3, max: 4, desc: '+4 очка науки и +3 очка космоса за уровень.' },
+  { id: 'solar', name: 'Солнечная электростанция', icon: '🔆', cost: 80, turns: 2, max: 4, desc: '+1% к доходу страны за уровень и +20% к работе шахт базы.' },
+  { id: 'farm', name: 'Гидропонная оранжерея', icon: '🌿', cost: 70, turns: 2, max: 3, desc: '+1 к стабильности страны за уровень (гордость нации).' },
+  { id: 'fuel', name: 'Топливный завод', icon: '⛽', cost: 110, turns: 3, max: 3, desc: 'Ракетное топливо и нефтепродукты: + нефть (зависит от тела), экспедиции с базы дешевле.' },
+  { id: 'tele', name: 'Обсерватория', icon: '🔭', cost: 90, turns: 3, max: 3, desc: '+4 очка космоса за уровень.' },
+  { id: 'port', name: 'Космопорт', icon: '🛫', cost: 220, turns: 5, max: 1, req: 'shuttle', desc: 'Все экспедиции −20% стоимости и −1 ход.' },
+  { id: 'def', name: 'Орбитальная оборона', icon: '🛡', cost: 260, turns: 5, max: 2, req: 'sdi', desc: '+10% к перехвату ядерных ракет за уровень.' },
+  { id: 'dome', name: 'Купол-город', icon: '🏙', cost: 300, turns: 6, max: 3, bodies: ['mars', 'venus', 'titan'], desc: '+6 дохода и +1 стабильности за уровень. Только Марс, Венера, Титан.' },
+];
+const SBLD = Object.fromEntries(SPACE_BLD.map(b => [b.id, b]));
+
+// ================================================================= состояние
+function SPACE() {
+  if (!S.space) S.space = { n: {}, first: {}, init: false };
+  if (!S.space.init) {
+    S.space.init = true;
+    // исторический старт
+    const give = (ids, list) => ids.forEach(id => { if (S.nations[id] && S.nations[id].alive) { const s = SP(id); list.forEach(t => { s.tech[t] = 1; }); } });
+    if (S.period >= 2025) {
+      give(['USA', 'RUS', 'CHN'], ['rockets', 'sat', 'manned', 'spysat', 'gps', 'station', 'lunar']);
+      give(['FRA', 'GBR', 'JAP', 'IND', 'GER'], ['rockets', 'sat', 'spysat', 'gps']);
+      S.space.first = { sat: 'RUS', manned: 'RUS', station: 'RUS' };
+    } else if (S.period >= 1962) {
+      give(['USA', 'SOV'], ['rockets', 'sat']);
+      give(['SOV'], ['manned']);
+      S.space.first = { sat: 'SOV', manned: 'SOV' };
+    }
+  }
+  return S.space;
+}
+function SP(nid) {
+  const sp = SPACE().n;
+  if (!sp[nid]) sp[nid] = { pts: 0, tech: {}, cur: null, missions: [], bases: {} };
+  return sp[nid];
+}
+const hasST = (nid, t) => !!(S.space && S.space.n[nid] && S.space.n[nid].tech[t]);
+const sb = (nid, body) => (S.space && S.space.n[nid] && S.space.n[nid].bases[body]) || null;
+
+function stechState(nid, id) {
+  const t = STECH[id], s = SP(nid);
+  if (s.tech[id]) return 'done';
+  if (s.cur === id) return 'active';
+  if (t.need && tl(nid, 'rocket') < t.need) return 'locked';
+  if ((t.req || []).some(r => !s.tech[r])) return 'locked';
+  return 'open';
+}
+function stechCost(id) { return Math.round(STECH[id].cost * (S.period >= 2025 ? 0.85 : 1)); }
+// очки космоса за ход
+function spacePts(nid) {
+  if (!hasST(nid, 'rockets') && tl(nid, 'rocket') < 3) return 0;
+  let v = 0, lab = 0;
+  provsOf(nid).forEach(id => { const b = S.prov[id].b; v += (b.spacecenter || 0) * 8; lab += (b.lab || 0) + (b.univ || 0) * 0.3; });
+  v += Math.min(10, lab) + tl(nid, 'rocket') * 0.8;
+  if (hasST(nid, 'station')) v += 3;
+  const s = SP(nid);
+  for (const k in s.bases) { const B = s.bases[k].b; v += (B.lab || 0) * 3 + (B.tele || 0) * 4; }
+  return v * (1 + mod(nid, 'space') + 0.05 * tl(nid, 'ai') + 0.05 * tl(nid, 'elec'));
+}
+function spaceSetResearch(nid, id) {
+  const st = stechState(nid, id);
+  if (st === 'done') return 'Уже изучено';
+  if (st === 'locked') { const t = STECH[id]; return t.need && tl(nid, 'rocket') < t.need ? `Нужна «Ракеты и космос» ур. ${t.need} в обычной науке` : 'Сначала изучите предыдущие технологии'; }
+  SP(nid).cur = id;
+  return null;
+}
+
+// ---------------------------------------------------------------- экспедиции
+function missionCost(nid, body) {
+  const B = BODIES[body], s = SP(nid);
+  let k = 1 - Math.min(0.5, mod(nid, 'launch'));
+  if (hasST(nid, 'shuttle')) k *= 0.75;
+  if (Object.values(s.bases).some(x => x.b.port)) k *= 0.8;
+  if (Object.values(s.bases).some(x => x.b.fuel)) k *= 0.9;
+  return Math.round(B.cost * k * P().costMul);
+}
+function missionTurns(nid, body) {
+  let t = BODIES[body].turns;
+  if (hasST(nid, 'fusion')) t = Math.ceil(t / 2);
+  if (Object.values(SP(nid).bases).some(x => x.b.port)) t -= 1;
+  return Math.max(1, t);
+}
+function missionChance(nid) {
+  return Math.min(0.97, 0.72 + Object.keys(SP(nid).tech).length * 0.012 + 0.01 * tl(nid, 'ai'));
+}
+function canLaunch(nid, body) {
+  const B = BODIES[body], s = SP(nid);
+  if (!B) return 'Нет такой цели';
+  if (!s.tech[B.tech]) return `Нужна космическая технология «${STECH[B.tech].name}»`;
+  if (s.bases[body]) return 'База уже построена';
+  if (s.missions.some(m => m.body === body)) return 'Экспедиция уже в пути';
+  if (nat(nid).gold < missionCost(nid, body)) return 'Недостаточно средств';
+  return null;
+}
+function launchMission(nid, body) {
+  const err = canLaunch(nid, body);
+  if (err) return err;
+  const c = missionCost(nid, body), t = missionTurns(nid, body);
+  nat(nid).gold -= c;
+  SP(nid).missions.push({ id: uid(), body, left: t, total: t });
+  log(`🚀 ${nat(nid).name} отправляет экспедицию: ${BODIES[body].name} (${t} ход.).`, isHuman(nid) ? 'good' : 'info', isHuman(nid) ? null : null);
+  return null;
+}
+
+// ---------------------------------------------------------------- базы
+function baseSlots(base) { return 1 + 2 * (base.b.hab || 0); }
+function baseUsed(base) { let s = 0; for (const k in base.b) if (k !== 'hab') s += base.b[k]; return s + (base.q && base.q.id !== 'hab' && !base.b[base.q.id] ? 1 : 0); }
+function sbldCost(nid, id, lvl) { return Math.round(SBLD[id].cost * (1 + 0.5 * lvl) * P().costMul); }
+function canSpaceBuild(nid, body, id) {
+  const base = sb(nid, body), B = SBLD[id];
+  if (!base) return 'Здесь нет вашей базы';
+  if (!STECH[BODIES[body].base] || !hasST(nid, BODIES[body].base)) return `Нужна технология «${STECH[BODIES[body].base].name}»`;
+  if (!B) return 'Нет такого здания';
+  if (base.q) return 'На базе уже идёт стройка';
+  const lvl = base.b[id] || 0;
+  if (lvl >= B.max) return 'Максимальный уровень';
+  if (B.req && !hasST(nid, B.req)) return `Нужна технология «${STECH[B.req].name}»`;
+  if (B.bodies && !B.bodies.includes(body)) return 'На этом теле не построить';
+  if (id !== 'hab' && !lvl && baseUsed(base) >= baseSlots(base)) return 'Нет места: постройте ещё жилой модуль';
+  if (nat(nid).gold < sbldCost(nid, id, lvl)) return 'Недостаточно средств';
+  return null;
+}
+function spaceBuild(nid, body, id) {
+  const err = canSpaceBuild(nid, body, id);
+  if (err) return err;
+  const base = sb(nid, body), lvl = base.b[id] || 0;
+  nat(nid).gold -= sbldCost(nid, id, lvl);
+  base.q = { id, left: SBLD[id].turns + (body === 'moon' ? 0 : 1) };
+  return null;
+}
+// доходы базы за ход
+function baseYield(nid, body) {
+  const base = sb(nid, body), B = BODIES[body];
+  if (!base) return { gold: 0, sci: 0, sp: 0, steel: 0, oil: 0, stab: 0, inc: 0 };
+  const b = base.b, cm = P().costMul;
+  let mine = (b.mine || 0) * B.mine * (1 + 0.2 * (b.solar || 0));
+  if (body === 'moon' && hasST(nid, 'he3')) mine *= 2;
+  if (body === 'mars' && hasST(nid, 'terraform')) mine *= 1.5;
+  const k = (1 + mod(nid, 'spaceInc')) * (body === 'mars' && hasST(nid, 'terraform') ? 1.5 : 1);
+  return {
+    gold: (mine + (b.dome || 0) * 6) * cm * k,
+    sci: (b.lab || 0) * 4,
+    sp: (b.lab || 0) * 3 + (b.tele || 0) * 4,
+    steel: (b.mine || 0) * (B.steel || 0) * k,
+    oil: (b.fuel || 0) * ((B.fuel || 0) + (B.oil || 0)),
+    stab: (b.farm || 0) + (b.dome || 0),
+    inc: (b.solar || 0) * 0.01,
+  };
+}
+function spaceYield(nid) {
+  const t = { gold: 0, sci: 0, sp: 0, steel: 0, oil: 0, stab: 0, inc: 0 };
+  const s = S.space && S.space.n[nid];
+  if (!s) return t;
+  for (const body in s.bases) { const y = baseYield(nid, body); for (const k in t) t[k] += y[k]; }
+  return t;
+}
+// постоянные бонусы технологий и баз (пересчитываются каждый ход как разница)
+function setDerived(n, key, val) {
+  n._sp = n._sp || {};
+  n.mods = n.mods || {};
+  const d = val - (n._sp[key] || 0);
+  if (d) { n.mods[key] = (n.mods[key] || 0) + d; n._sp[key] = val; }
+}
+function spaceDefense(nid) {
+  let v = hasST(nid, 'sdi') ? 0.15 : 0;
+  const s = S.space && S.space.n[nid];
+  if (s) for (const k in s.bases) v += (s.bases[k].b.def || 0) * 0.1;
+  return v;
+}
+
+// ---------------------------------------------------------------- космическая гонка
+const FIRSTS = { sat: 'спутник', manned: 'человек в космосе', station: 'орбитальная станция', moon: 'высадка на Луну', mars: 'высадка на Марс', marsCol: 'колония на Марсе', venus: 'база на Венере', ceres: 'база на Церере', europa: 'база на Европе', titan: 'база на Титане', starship: 'межзвёздный корабль' };
+function claimFirst(nid, key, text) {
+  const F = SPACE().first;
+  if (F[key]) return;
+  F[key] = nid;
+  const n = nat(nid);
+  n.stab = Math.min(100, n.stab + 8);
+  Object.values(S.nations).forEach(x => { if (x.alive && x.id !== nid && !atWar(x.id, nid)) addRel(x.id, nid, 4); });
+  log(`🌟 КОСМИЧЕСКАЯ ГОНКА: ${n.name} — ${text}! Весь мир восхищён (стабильность +8).`, 'big', null);
+  if (isHuman(nid)) S.pending.push({ id: uid(), to: nid, type: 'spaceFirst', key, text });
+}
+
+// ================================================================= ход
+function spaceTick() {
+  SPACE();
+  Object.values(S.nations).forEach(n => {
+    if (!n.alive) return;
+    const sp = S.space.n[n.id];
+    if (n.ai && !sp && (!n.major || tl(n.id, 'rocket') < 3)) return;
+    const s = SP(n.id);
+    // исследования
+    const pts = spacePts(n.id);
+    if (n.ai && !s.cur) AI_spaceResearch(n);
+    if (pts > 0 && s.cur) {
+      s.pts += pts;
+      const c = stechCost(s.cur);
+      if (s.pts >= c) {
+        s.pts -= c;
+        const t = STECH[s.cur];
+        s.tech[s.cur] = 1;
+        s.cur = null;
+        if (isHuman(n.id)) log(`🚀 Космическая наука: «${t.name}» — ${t.desc}`, 'good', n.id);
+        if (t.first) claimFirst(n.id, t.id, t.first.toLowerCase());
+        if (t.id === 'starship') addMods(n, { income: 0.1, prod: 0.1, research: 0.1, stab: 10 });
+        if (n.ai) AI_spaceResearch(n);
+      }
+    } else if (pts > 0) s.pts = Math.min(s.pts + pts, 2000);   // копятся, пока не выбрано исследование
+    // экспедиции
+    s.missions = s.missions.filter(m => {
+      m.left--;
+      if (m.left > 0) return true;
+      const B = BODIES[m.body];
+      if (Math.random() < missionChance(n.id)) {
+        s.bases[m.body] = { b: { hab: 1 }, q: null, t: S.turn };
+        log(`🏳 ${n.name}: экспедиция достигла цели — ${B.name}! Основана база.`, isHuman(n.id) ? 'good' : 'info', null);
+        claimFirst(n.id, m.body === 'moon' ? 'moon' : m.body === 'mars' ? 'mars' : m.body, m.body === 'moon' ? 'первый человек на Луне' : m.body === 'mars' ? 'первый человек на Марсе' : 'первая база: ' + B.name);
+      } else {
+        n.stab = Math.max(0, n.stab - 4);
+        log(`💥 Катастрофа: экспедиция ${n.name} к цели «${B.name}» погибла. Стабильность −4.`, isHuman(n.id) ? 'bad' : 'info', null);
+        if (isHuman(n.id)) S.pending.push({ id: uid(), to: n.id, type: 'spaceFail', body: m.body });
+      }
+      return false;
+    });
+    // стройки на базах
+    for (const body in s.bases) {
+      const base = s.bases[body];
+      if (base.q && --base.q.left <= 0) {
+        base.b[base.q.id] = (base.b[base.q.id] || 0) + 1;
+        if (isHuman(n.id)) log(`🏗 ${BODIES[body].name}: построено «${SBLD[base.q.id].name}» ур. ${base.b[base.q.id]}.`, 'good', n.id);
+        base.q = null;
+      }
+    }
+    // доходы
+    const y = spaceYield(n.id);
+    n.gold += y.gold;
+    n.res.pts += y.sci;
+    n.steel = (n.steel || 0) + y.steel;
+    n.oil = (n.oil || 0) + y.oil;
+    setDerived(n, 'stab', Math.min(15, y.stab) + (hasST(n.id, 'manned') ? 1 : 0));
+    setDerived(n, 'income', y.inc);
+    setDerived(n, 'research', (hasST(n.id, 'sat') ? 0.05 : 0) + (hasST(n.id, 'station') ? 0.1 : 0));
+    setDerived(n, 'supply', hasST(n.id, 'gps') ? 1 : 0);
+    setDerived(n, 'atk', hasST(n.id, 'gps') ? 0.03 : 0);
+    if (n.ai) AI_space(n);
+  });
+}
+function AI_spaceResearch(n) {
+  const s = SP(n.id);
+  const open = SPACE_TECH.filter(t => stechState(n.id, t.id) === 'open');
+  if (!open.length) return;
+  open.sort((a, b) => a.cost - b.cost + (Math.random() - 0.5) * 60);
+  s.cur = open[0].id;
+}
+function AI_space(n) {
+  if (!n.major) return;
+  const s = SP(n.id), war = enemiesOf(n.id).length > 0;
+  // космодром
+  if (tl(n.id, 'rocket') >= 5 && !provsOf(n.id).some(p => S.prov[p].b.spacecenter) && Math.random() < 0.05) {
+    const p = n.capital;
+    if (S.prov[p] && !S.prov[p].bq && typeof startBuild === 'function') startBuild(n.id, p, 'spacecenter');
+  }
+  if (war && n.gold < 500) return;
+  for (const body of Object.keys(BODIES)) {
+    if (!canLaunch(n.id, body) && n.gold > missionCost(n.id, body) * 3 && Math.random() < 0.15) { launchMission(n.id, body); break; }
+  }
+  for (const body in s.bases) {
+    const base = s.bases[body];
+    if (base.q || Math.random() > 0.3) continue;
+    const order = baseUsed(base) >= baseSlots(base) ? ['hab'] : ['mine', 'lab', 'hab', 'solar', 'farm', 'dome', 'fuel', 'tele', 'port', 'def'];
+    for (const id of order) if (!canSpaceBuild(n.id, body, id) && n.gold > sbldCost(n.id, id, base.b[id] || 0) * 4) { spaceBuild(n.id, body, id); break; }
+  }
+}
+// подключение к обработке хода
+(function () {
+  const post0 = features3Post;
+  features3Post = function () { post0.apply(this, arguments); spaceTick(); };
+})();
+
+// ================================================================= команды
+Object.assign(CMD, {
+  spaceRes(nid, { id }) { if (!STECH[id]) return E('Нет такой технологии'); const e = spaceSetResearch(nid, id); return e ? E(e) : R(`Космическая наука: изучаем «${STECH[id].name}»`); },
+  spaceLaunch(nid, { body }) { const e = launchMission(nid, body); return e ? E(e) : R(`🚀 Экспедиция отправлена: ${BODIES[body].name}`); },
+  spaceBuild(nid, { body, id }) { const e = spaceBuild(nid, body, id); return e ? E(e) : R(`Стройка на базе «${BODIES[body].name}»: ${SBLD[id].name}`); },
+});
 
 </script>
 <script>
@@ -7754,8 +8264,8 @@ Object.assign(UI, {
     const tab = (k, t) => `<button class="${this.techCat === k ? 'on' : ''}" data-act="techCat" data-id="${k}">${t}</button>`;
     let h = `<h2>🔬 Наука</h2>
       <div class="sec tech-top"><div class="row sp"><span>Очки исследований: <b>${rp.toFixed(1)}</b>/ход</span><span class="muted" style="font-size:12px">Университет +2, НИИ +5, школы +1, киберцентр +3, космодром +10 · «Электроника» +4%/ур.</span></div>
-        <div style="margin-top:6px">Сейчас: <b>${T(cur).icon} ${T(cur).name} → ${esc((TECH_LV[cur] || [])[n.tech[cur]] || 'максимум')}</b>
-        ${n.tech[cur] < TECH_MAX ? `<div class="bar"><i style="width:${Math.min(100, n.res.pts / techCost(n.tech[cur]) * 100)}%"></i></div><span class="muted">${Math.floor(n.res.pts)} / ${techCost(n.tech[cur])} · ~${eta(cur, n.res.pts)} ход.</span>` : ''}</div>
+        <div style="margin-top:6px">Сейчас: <b>${T(cur).icon} ${T(cur).name} → ${n.tech[cur] < techCap(S.player) ? esc(techName(cur, n.tech[cur])) : 'максимум поколения'}</b>
+        ${n.tech[cur] < techCap(S.player) ? `<div class="bar"><i style="width:${Math.min(100, n.res.pts / techCost(n.tech[cur]) * 100)}%"></i></div><span class="muted">${Math.floor(n.res.pts)} / ${techCost(n.tech[cur])} · ~${eta(cur, n.res.pts)} ход.</span>` : ''}</div>
         <div style="margin-top:6px">Очередь (${n.res.q.length}/6): ${qRows || '<span class="muted">пусто — после текущего исследования добавьте следующее, чтобы не терять очки</span>'}</div></div>
       <div class="tabs">${Object.entries(TECH_CATS).map(([k, t]) => tab(k, t)).join('')}</div><div class="tech-tree">`;
     TECHS.filter(t => (TECH_CAT[t.id] || 'mil') === this.techCat).forEach(t => {
@@ -7763,9 +8273,10 @@ Object.assign(UI, {
       const inQ = n.res.q.includes(t.id), isCur = cur === t.id;
       const unlocks = LAND_UNITS.concat(SHIP_UNITS).filter(u => CAT_INFO[UNITS[u].cat].branch === t.id && UNITS[u].req === lvl + 1 && unitName(u)).map(unitName);
       const ub = BUILDINGS.filter(B => B.req && B.req.tech && B.req.tech[t.id] === lvl + 1 && (!B.minPeriod || S.period >= B.minPeriod)).map(B => B.name);
-      const nodes = (TECH_LV[t.id] || []).map((nm, i) => `<div class="tnode ${i < lvl ? 'done' : i === lvl ? (isCur ? 'cur' : 'next') : ''}" title="${esc(nm)}"><b>${i + 1}</b><span>${esc(nm)}</span></div>`).join('');
-      h += `<div class="tbranch ${isCur ? 'on' : ''}"><div class="tb-head"><div><b>${t.icon} ${t.name}</b> <span class="chip">ур. ${lvl}/${TECH_MAX}</span>${isCur ? ' <span class="chip goldc">исследуется</span>' : inQ ? ` <span class="chip">в очереди #${n.res.q.indexOf(t.id) + 2}</span>` : ''}</div>
-        <div class="tb-btns">${lvl < TECH_MAX ? `${!isCur ? `<button class="btn sm" data-act="rq" data-id="${t.id}" data-mode="now">Изучать сейчас</button>` : ''}${!isCur && !inQ ? `<button class="btn sm ghost" data-act="rq" data-id="${t.id}" data-mode="add">+ В очередь</button>` : ''}<span class="muted" style="font-size:12px">${techCost(lvl)} оч. · ~${eta(t.id)} х.</span>` : '<span class="good">Изучено полностью</span>'}</div></div>
+      const g0 = techCap(S.player) - TECH_MAX;
+      const nodes = Array.from({ length: TECH_MAX }, (x, k) => g0 + k).map(i => { const nm = techName(t.id, i); return `<div class="tnode ${i < lvl ? 'done' : i === lvl ? (isCur ? 'cur' : 'next') : ''}" title="${esc(nm)}"><b>${i + 1}</b><span>${esc(nm)}</span></div>`; }).join('');
+      h += `<div class="tbranch ${isCur ? 'on' : ''}"><div class="tb-head"><div><b>${t.icon} ${t.name}</b> <span class="chip">ур. ${lvl}/${techCap(S.player)}</span>${isCur ? ' <span class="chip goldc">исследуется</span>' : inQ ? ` <span class="chip">в очереди #${n.res.q.indexOf(t.id) + 2}</span>` : ''}</div>
+        <div class="tb-btns">${lvl < techCap(S.player) ? `${!isCur ? `<button class="btn sm" data-act="rq" data-id="${t.id}" data-mode="now">Изучать сейчас</button>` : ''}${!isCur && !inQ ? `<button class="btn sm ghost" data-act="rq" data-id="${t.id}" data-mode="add">+ В очередь</button>` : ''}<span class="muted" style="font-size:12px">${techCost(lvl)} оч. · ~${eta(t.id)} х.</span>` : '<span class="good">Изучено полностью</span>'}</div></div>
         <div class="muted" style="font-size:12px;margin:3px 0 6px">${t.desc}</div>
         <div class="tnodes">${nodes}</div>
         ${unlocks.length || ub.length ? `<div class="good" style="font-size:12px;margin-top:4px">Следующий уровень откроет: ${unlocks.concat(ub).join(', ')}</div>` : ''}</div>`;
@@ -9400,7 +9911,7 @@ class MqttWS {
         const tl = (body[0] << 8) | body[1];
         const topic = new TextDecoder().decode(body.subarray(2, 2 + tl));
         let off = 2 + tl; if (type & 6) off += 2;
-        const h = this.subs[topic];
+        const h = this.subs[topic] || this._wild(topic);
         if (h) { try { h(new TextDecoder().decode(body.subarray(off))); } catch (e) { console.warn('relay', e); } }
       }
     }
@@ -9415,7 +9926,19 @@ class MqttWS {
     this.subs[topic] = fn;
     return this.ok && this.ws.readyState === 1 ? this._subPkt(topic) : Promise.resolve();
   }
-  pub(topic, text) { if (this.ok && this.ws && this.ws.readyState === 1) this.ws.send(this.packet(0x30, [this.str(topic)], new TextEncoder().encode(text))); }
+  // retain — сервер хранит последнее сообщение темы и отдаёт его новым подписчикам (пустое — стирает)
+  pub(topic, text, retain) { if (this.ok && this.ws && this.ws.readyState === 1) { this.ws.send(this.packet(retain ? 0x31 : 0x30, [this.str(topic)], new TextEncoder().encode(text))); return true; } return false; }
+  // подписки с шаблонами: + — один уровень, # — всё дальше
+  _wild(topic) {
+    for (const k in this.subs) {
+      if (!k.includes('+') && !k.includes('#')) continue;
+      const a = k.split('/'), b = topic.split('/');
+      let ok = true;
+      for (let i = 0; i < a.length; i++) { if (a[i] === '#') break; if (i >= b.length || (a[i] !== '+' && a[i] !== b[i])) { ok = false; break; } if (i === a.length - 1 && b.length !== a.length) ok = false; }
+      if (ok) return (txt) => this.subs[k](txt, topic);
+    }
+    return null;
+  }
   close() {
     this.dead = true; this.auto = false; this.onclose = null; this.ok = false;
     clearTimeout(this._retryT); this._untick();
@@ -10608,6 +11131,641 @@ const AuthUI = {
     };
   },
 };
+
+</script>
+<script>
+/* Друзья: код друга, заявки, список друзей со статусом «в сети / в комнате», приглашения в сетевую игру.
+   Связь — через тот же публичный сервер сообщений, что и запасной канал сетевой игры (MQTT, «хранимые» сообщения:
+   заявка дождётся друга, даже если он сейчас не в игре). Список друзей хранится на устройстве и, если вы вошли, в аккаунте.
+   Наружу уходят только код друга и имя игрока. */
+'use strict';
+
+const FR_ROOT = 'mirderzhava-fr1/';
+const FR_ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const FR_ONLINE_MS = 150000;
+
+const Friends = {
+  me: null,          // { code, list: [{ c, n, ok }] }
+  pres: {},          // код друга -> { n, s, r, t, v }
+  reqs: {},          // входящие заявки: код -> { n, t }
+  invites: {},       // приглашения: код -> { n, r, t }
+  cli: null, online: false, _presT: 0,
+
+  key() { return 'md_friends' + (typeof Auth !== 'undefined' && Auth.user ? '_' + Auth.user.uid : ''); },
+  load() {
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem(this.key()) || 'null'); } catch (e) { d = null; }
+    if (!d || !d.code) {
+      // гость, впервые вошедший в аккаунт, сохраняет свой код
+      let g = null;
+      try { g = JSON.parse(localStorage.getItem('md_friends') || 'null'); } catch (e) { g = null; }
+      d = d && d.code ? d : { code: (g && g.code) || Array.from({ length: 6 }, () => FR_ALPH[Math.floor(Math.random() * FR_ALPH.length)]).join(''), list: (g && g.list) || [] };
+    }
+    d.list = d.list || [];
+    this.me = d;
+    this.loadedKey = this.key();
+    this.save(true);
+  },
+  save(local) {
+    try { localStorage.setItem(this.key(), JSON.stringify(this.me)); } catch (e) { /* */ }
+    if (!local) this.push();
+    this.renderBadge();
+  },
+  name() { return ((typeof Auth !== 'undefined' && Auth.user && Auth.user.name) || localStorage.getItem('wg_name') || 'Игрок').slice(0, 20); },
+  // ------------------------------------------------ аккаунт: Firestore users/{uid}/meta/friends
+  async push() {
+    if (typeof Auth === 'undefined' || !Auth.user || !Auth.cloudSaves()) return;
+    clearTimeout(this._pt);
+    this._pt = setTimeout(async () => {
+      try { await fetch(Auth.fsUrl('meta/friends'), { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await Auth.token() }, body: JSON.stringify({ fields: { data: { stringValue: JSON.stringify(this.me) } } }) }); } catch (e) { /* */ }
+    }, 1200);
+  },
+  async pull() {
+    if (typeof Auth === 'undefined' || !Auth.user || !Auth.cloudSaves()) return;
+    try {
+      const r = await fetch(Auth.fsUrl('meta/friends'), { headers: { Authorization: 'Bearer ' + await Auth.token() } });
+      if (r.status === 404) { this.push(); return; }
+      if (!r.ok) return;
+      const j = await r.json();
+      const c = JSON.parse((j.fields && j.fields.data && j.fields.data.stringValue) || 'null');
+      if (!c || !c.code) return;
+      const was = this.me.code;
+      const list = c.list || [];
+      this.me.list.forEach(f => { if (!list.some(x => x.c === f.c)) list.push(f); });
+      this.me = { code: c.code, list };
+      this.save();
+      if (was !== c.code) this.resub();
+      this.render();
+    } catch (e) { /* нет сети */ }
+  },
+  // ------------------------------------------------ связь
+  async start() {
+    if (!this.me || this.loadedKey !== this.key()) this.load();
+    if (this.cli || typeof MqttWS === 'undefined') return;
+    for (const url of RELAY_BROKERS.slice(0, 2)) {
+      const c = new MqttWS(url, true);
+      try { await c.connect(7000); this.cli = c; break; } catch (e) { c.close(); }
+    }
+    if (!this.cli) { setTimeout(() => this.start(), 60000); return; }
+    this.online = true;
+    this.cli.onclose = () => { this.online = false; };
+    this.resub();
+    Tick.add(n => { if (n % 60 === 0) this.presence(); });
+    this.render();
+  },
+  T(code, part) { return FR_ROOT + code + '/' + part; },
+  resub() {
+    if (!this.cli) return;
+    for (const k of Object.keys(this.cli.subs)) if (k.startsWith(FR_ROOT)) delete this.cli.subs[k];
+    const me = this.me.code;
+    const j = s => { try { return s ? JSON.parse(s) : null; } catch (e) { return null; } };
+    const from = t => t.split('/').pop();
+    this.cli.sub(this.T(me, 'q/+'), (s, t) => {
+      const c = from(t), o = j(s);
+      if (!o || !c || c === me) { delete this.reqs[c]; return this.render(); }
+      if (this.me.list.some(f => f.c === c)) { this.accept(c, o.n); return; }   // уже друг (или мы тоже отправили заявку)
+      this.reqs[c] = o;
+      this.notify(`👥 ${o.n} хочет добавить вас в друзья`);
+      this.render();
+    });
+    this.cli.sub(this.T(me, 'a/+'), (s, t) => {
+      const c = from(t), o = j(s);
+      if (!o || !c) return;
+      const f = this.me.list.find(x => x.c === c);
+      if (o.rm) { if (f) { this.me.list = this.me.list.filter(x => x.c !== c); this.save(); } }
+      else if (f && !f.ok) { f.ok = true; f.n = o.n || f.n; this.save(); this.notify(`👥 ${f.n} принял(а) вашу заявку в друзья`); }
+      else if (!f) { this.me.list.push({ c, n: o.n, ok: true }); this.save(); }
+      this.cli.pub(t, '', true);
+      this.subPres(c);
+      this.render();
+    });
+    this.cli.sub(this.T(me, 'i/+'), (s, t) => {
+      const c = from(t), o = j(s);
+      if (!o || !o.r || Date.now() - (o.t || 0) > 3600e3) { if (o) this.cli.pub(t, '', true); return; }
+      this.invites[c] = o;
+      this.cli.pub(t, '', true);
+      this.showInvite(c, o);
+      this.render();
+    });
+    this.me.list.forEach(f => this.subPres(f.c));
+    this.presence();
+  },
+  subPres(c) {
+    if (!this.cli || this.cli.subs[this.T(c, 'p')]) return;
+    this.cli.sub(this.T(c, 'p'), s => { try { this.pres[c] = s ? JSON.parse(s) : null; } catch (e) { this.pres[c] = null; } this.render(); });
+  },
+  where() {
+    if (typeof Net !== 'undefined' && Net.mode && Net.code) return { s: Net.started || (typeof Main !== 'undefined' && Main.inGame()) ? 'netgame' : 'lobby', r: Net.code };
+    if (typeof Main !== 'undefined' && Main.inGame && Main.inGame()) return { s: 'game', r: null };
+    return { s: 'menu', r: null };
+  },
+  presence() {
+    if (!this.cli) return;
+    const w = this.where();
+    this.cli.pub(this.T(this.me.code, 'p'), JSON.stringify({ n: this.name(), s: w.s, r: w.r, t: Date.now(), v: typeof GAME_VERSION !== 'undefined' ? GAME_VERSION : '' }), true);
+  },
+  isOn(c) { const p = this.pres[c]; return !!(p && Date.now() - p.t < FR_ONLINE_MS); },
+  // ------------------------------------------------ действия
+  add(code) {
+    code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code.length !== 6) return 'Код друга — 6 символов';
+    if (code === this.me.code) return 'Это ваш собственный код';
+    if (this.me.list.some(f => f.c === code)) return 'Уже в списке друзей';
+    if (!this.cli) return 'Нет связи с сервером — проверьте интернет';
+    if (this.reqs[code]) { this.accept(code, this.reqs[code].n); return null; }
+    this.me.list.push({ c: code, n: 'Игрок ' + code, ok: false });
+    this.save();
+    this.cli.pub(this.T(code, 'q/' + this.me.code), JSON.stringify({ n: this.name(), t: Date.now() }), true);
+    this.subPres(code);
+    return null;
+  },
+  accept(code, name) {
+    delete this.reqs[code];
+    let f = this.me.list.find(x => x.c === code);
+    if (!f) { f = { c: code, n: name || 'Игрок ' + code, ok: true }; this.me.list.push(f); } else { f.ok = true; if (name) f.n = name; }
+    this.save();
+    if (this.cli) {
+      this.cli.pub(this.T(this.me.code, 'q/' + code), '', true);
+      this.cli.pub(this.T(code, 'a/' + this.me.code), JSON.stringify({ n: this.name(), t: Date.now() }), true);
+      this.subPres(code);
+    }
+    this.render();
+  },
+  decline(code) {
+    delete this.reqs[code];
+    if (this.cli) this.cli.pub(this.T(this.me.code, 'q/' + code), '', true);
+    this.render();
+  },
+  remove(code) {
+    this.me.list = this.me.list.filter(f => f.c !== code);
+    this.save();
+    if (this.cli) { this.cli.pub(this.T(code, 'a/' + this.me.code), JSON.stringify({ rm: 1 }), true); this.cli.pub(this.T(code, 'q/' + this.me.code), '', true); }
+    this.render();
+  },
+  invite(code) {
+    if (!this.cli || typeof Net === 'undefined' || !Net.code || !Net.mode) return 'Сначала создайте комнату или войдите в неё';
+    this.cli.pub(this.T(code, 'i/' + this.me.code), JSON.stringify({ n: this.name(), r: Net.code, t: Date.now() }), true);
+    return null;
+  },
+  async joinRoom(room) {
+    if (typeof Net === 'undefined') return;
+    if (Net.mode && Net.code === room) return;
+    if ((Net.mode || (typeof Main !== 'undefined' && Main.inGame())) && !confirm('Выйти из текущей игры и присоединиться к комнате друга? (Сохраните игру, если нужно.)')) return;
+    try { if (Net.mode) Net.leave(); } catch (e) { /* */ }
+    $('#modal').hidden = true;
+    UI.toast('Подключаемся к комнате ' + room + '…');
+    try { await Net.join(this.name(), room); NetUI.showLobby(); this.presence(); } catch (e) { Net.reset(); UI.toast(e.message || 'Не удалось подключиться', 'bad'); if (Main.showMenu && !Main.inGame()) Main.showMenu(); }
+  },
+  // ------------------------------------------------ интерфейс
+  notify(text) { if (typeof Sound !== 'undefined') Sound.play('event'); if (typeof UI !== 'undefined') UI.toast(text, 'good'); this.renderBadge(); },
+  showInvite(c, o) {
+    if (typeof Sound !== 'undefined') Sound.play('un');
+    const old = document.getElementById('frInv'); if (old) old.remove();
+    const el = document.createElement('div');
+    el.id = 'frInv'; el.className = 'fr-inv';
+    el.innerHTML = `<div><b>👥 ${esc(o.n)}</b> приглашает вас в сетевую игру<br><small class="muted">Комната ${esc(o.r)}</small></div>
+      <div class="row"><button class="btn ghost sm" data-fi="no">Позже</button><button class="btn gold sm" data-fi="go">Присоединиться</button></div>`;
+    document.body.appendChild(el);
+    el.querySelector('[data-fi="no"]').onclick = () => el.remove();
+    el.querySelector('[data-fi="go"]').onclick = () => { el.remove(); this.joinRoom(o.r); };
+    setTimeout(() => el.remove(), 120000);
+  },
+  renderBadge() {
+    const n = Object.keys(this.reqs).length;
+    document.querySelectorAll('.fr-count').forEach(b => { b.textContent = n ? String(n) : ''; b.hidden = !n; });
+  },
+  statusText(c) {
+    const p = this.pres[c];
+    if (!this.isOn(c)) return '<span class="muted">не в сети</span>';
+    if (p.s === 'lobby') return `<span class="good">в комнате ${esc(p.r)}</span>`;
+    if (p.s === 'netgame') return `<span class="good">играет по сети (${esc(p.r)})</span>`;
+    if (p.s === 'game') return '<span class="good">играет</span>';
+    return '<span class="good">в сети</span>';
+  },
+  html() {
+    if (!this.me || this.loadedKey !== this.key()) this.load();
+    const inRoom = typeof Net !== 'undefined' && Net.mode && Net.code;
+    const reqs = Object.entries(this.reqs);
+    const list = this.me.list.slice().sort((a, b) => (this.isOn(b.c) - this.isOn(a.c)) || a.n.localeCompare(b.n, 'ru'));
+    const row = f => {
+      const p = this.pres[f.c], on = this.isOn(f.c);
+      const name = (p && p.n) || f.n;
+      const ver = p && p.v && typeof GAME_VERSION !== 'undefined' && p.v !== GAME_VERSION ? ` <span class="warn" title="Другая версия игры">v${esc(p.v)}</span>` : '';
+      const acts = [];
+      if (!f.ok) acts.push('<span class="muted" style="font-size:12px">ждёт подтверждения</span>');
+      if (f.ok && on && p.r && p.r !== (inRoom ? Net.code : '')) acts.push(`<button class="btn sm gold" data-act="frJoin" data-id="${esc(p.r)}">Войти в комнату</button>`);
+      if (f.ok && inRoom && !(p && p.r === Net.code)) acts.push(`<button class="btn sm" data-act="frInvite" data-id="${f.c}">Пригласить</button>`);
+      acts.push(`<button class="btn sm ghost" data-act="frRemove" data-id="${f.c}" title="Удалить из друзей">✕</button>`);
+      return `<div class="fr-row"><span class="fr-dot ${on ? 'on' : ''}"></span><div class="fr-name"><b>${esc(name)}</b>${ver}<small>${f.ok ? this.statusText(f.c) : 'код ' + f.c}</small></div><div class="fr-acts">${acts.join('')}</div></div>`;
+    };
+    return `<h2>👥 Друзья</h2>
+      <div class="cols"><div class="sec"><h4>Ваш код друга</h4><div class="row"><span class="fr-code">${this.me.code}</span><button class="btn ghost sm" data-act="frCopy">📋 Копировать</button></div>
+        <p class="muted" style="font-size:12.5px;margin:6px 0 0">Отправьте этот код другу — он добавит вас. Имя в списке друзей: <b>${esc(this.name())}</b>.${typeof Auth !== 'undefined' && !Auth.user ? ' Войдите в аккаунт, чтобы друзья были на всех ваших устройствах.' : ''}</p></div>
+      <div class="sec"><h4>Добавить друга</h4><div class="row"><input class="input" id="frCode" maxlength="6" placeholder="Код друга" style="text-transform:uppercase;letter-spacing:.2em;font-weight:700;max-width:170px"><button class="btn gold" data-act="frAdd">Добавить</button></div>
+        <div id="frMsg" class="muted" style="font-size:12.5px;margin-top:6px">${this.cli ? '' : '<span class="warn">Подключение к серверу друзей…</span>'}</div></div></div>
+      ${reqs.length ? `<div class="sec"><h4>Заявки в друзья</h4>${reqs.map(([c, o]) => `<div class="fr-row"><span class="fr-dot on"></span><div class="fr-name"><b>${esc(o.n)}</b><small>код ${c}</small></div><div class="fr-acts"><button class="btn sm green" data-act="frAccept" data-id="${c}">Принять</button><button class="btn sm ghost" data-act="frDecline" data-id="${c}">Отклонить</button></div></div>`).join('')}</div>` : ''}
+      <div class="sec"><h4>Список друзей (${this.me.list.length})</h4>${list.length ? list.map(row).join('') : '<p class="muted">Пока никого. Добавьте друга по коду.</p>'}
+        ${inRoom ? `<p class="muted" style="font-size:12.5px">Вы в комнате <b>${esc(Net.code)}</b> — пригласите друзей, им придёт приглашение.</p>` : '<p class="muted" style="font-size:12.5px">Чтобы приглашать друзей, создайте комнату: «🌐 Игра по сети».</p>'}</div>`;
+  },
+  open() { this.win = true; UI.modal(this.html()); UI.win = 'friends'; this.bind(); },
+  bind() { const i = $('#frCode'); if (i) i.onkeydown = e => { if (e.key === 'Enter') this.click('frAdd'); }; },
+  render() {
+    this.renderBadge();
+    if (UI.win === 'friends' && !$('#modal').hidden) {
+      const ae = document.activeElement, v = $('#frCode') && $('#frCode').value;
+      if (ae && ae.id === 'frCode') return;
+      UI.modal(this.html()); UI.win = 'friends'; this.bind();
+      if (v && $('#frCode')) $('#frCode').value = v;
+    }
+  },
+  click(act, id) {
+    const msg = t => { const m = $('#frMsg'); if (m) m.innerHTML = t; };
+    if (act === 'frAdd') { const e = this.add($('#frCode') && $('#frCode').value); if (e) msg(`<span class="bad">${esc(e)}</span>`); else { this.render(); msg('<span class="good">Заявка отправлена. Друг увидит её, когда зайдёт в игру.</span>'); } return; }
+    if (act === 'frCopy') { try { navigator.clipboard.writeText(this.me.code); UI.toast('Код скопирован: ' + this.me.code, 'good'); } catch (e) { /* */ } return; }
+    if (act === 'frAccept') return this.accept(id, this.reqs[id] && this.reqs[id].n);
+    if (act === 'frDecline') return this.decline(id);
+    if (act === 'frRemove') { if (confirm('Удалить из друзей?')) this.remove(id); return; }
+    if (act === 'frInvite') { const e = this.invite(id); UI.toast(e || 'Приглашение отправлено', e ? 'bad' : 'good'); return; }
+    if (act === 'frJoin') return this.joinRoom(id);
+  },
+};
+
+(function patchFriends() {
+  const click0 = UI.click;
+  UI.click = function (e) {
+    const b = e.target.closest('[data-act]');
+    if (b && /^fr[A-Z]/.test(b.dataset.act)) { e.preventDefault(); return Friends.click(b.dataset.act, b.dataset.id); }
+    if (b && b.dataset.act === 'friends') { e.preventDefault(); return Friends.open(); }
+    return click0.call(this, e);
+  };
+  const close0 = UI.closeModal;
+  UI.closeModal = function () { if (this.win === 'friends') this.win = null; return close0.apply(this, arguments); };
+  const menu0 = UI.winMenu;
+  UI.winMenu = function () { return menu0.call(this).replace('<button class="btn ghost" data-act="help">', '<button class="btn ghost" data-act="friends">👥 Друзья <span class="fr-count" hidden></span></button><button class="btn ghost" data-act="help">'); };
+  window.addEventListener('DOMContentLoaded', () => {
+    // кнопка в главном меню
+    const acts = document.querySelector('#menu .menu-actions');
+    if (acts) {
+      const b = document.createElement('button');
+      b.className = 'btn ghost big'; b.id = 'btnFriends';
+      b.innerHTML = '👥 Друзья <span class="fr-count" hidden></span>';
+      b.onclick = () => Friends.open();
+      acts.insertBefore(b, document.getElementById('btnNet'));
+    }
+    // в лобби — пригласить друзей
+    const lob0 = NetUI.renderLobby;
+    NetUI.renderLobby = function () {
+      lob0.apply(this, arguments);
+      const body = $('#lobbyBody');
+      if (body && !$('#lobbyBody #lbFriends')) body.insertAdjacentHTML('afterbegin', '<button class="btn ghost sm" id="lbFriends" style="float:right;margin-left:8px">👥 Пригласить друзей</button>');
+      const lb = $('#lbFriends'); if (lb) lb.onclick = () => Friends.open();
+    };
+    // сменился аккаунт — свой список друзей
+    if (typeof Auth !== 'undefined' && Auth.onChange) Auth.onChange(() => { if (Friends.loadedKey !== Friends.key()) { Friends.load(); Friends.resub(); } Friends.pull(); Friends.presence(); });
+    setTimeout(() => { if (/^(https?|app):$/.test(location.protocol) && !/[?&](selftest|nettest)=/.test(location.search)) Friends.start(); else Friends.load(); Friends.pull(); }, 2500);
+    // статус «в игре / в комнате» сразу при смене экрана
+    const enter0 = Main.enterGame;
+    Main.enterGame = function () { const r = enter0.apply(this, arguments); setTimeout(() => Friends.presence(), 500); return r; };
+    const show0 = NetUI.showLobby;
+    NetUI.showLobby = function () { const r = show0.apply(this, arguments); setTimeout(() => Friends.presence(), 500); return r; };
+  });
+})();
+
+</script>
+<script>
+/* v7, интерфейс: поколения науки и курса, экран космоса (Солнечная система), космическая наука, базы. */
+'use strict';
+
+// ================================================================= экран космоса
+const SpaceView = {
+  open: false, sel: 'moon', zoom: 1, panX: 0, panY: 0, t0: 0, hover: null, stars: null, pos: {},
+  show() {
+    if (!S || !S.player) return;
+    SPACE();
+    let el = $('#space');
+    if (!el) {
+      el = document.createElement('section');
+      el.id = 'space';
+      el.className = 'space-view';
+      el.innerHTML = `<canvas id="spCv"></canvas>
+        <div class="sp-top"><button class="btn ghost" data-sp="earth">🌍 Вернуться на Землю</button><div class="sp-title">🚀 Космос</div><div class="sp-top-r"><span id="spDate"></span><button class="btn" data-sp="end">Следующий ход ▶</button></div></div>
+        <aside class="sp-panel" id="spPanel"></aside><div class="sp-hint">Колесо — масштаб, перетаскивание — обзор, клик по небесному телу — подробности</div>`;
+      document.body.appendChild(el);
+      el.addEventListener('click', e => this.onClick(e));
+      const cv = $('#spCv');
+      cv.addEventListener('mousemove', e => this.onMove(e));
+      cv.addEventListener('mousedown', e => { this.drag = { x: e.clientX, y: e.clientY, px: this.panX, py: this.panY, moved: false }; });
+      window.addEventListener('mouseup', () => { setTimeout(() => { this.drag = null; }, 0); });
+      cv.addEventListener('wheel', e => { e.preventDefault(); this.zoom = clamp(this.zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 0.5, 4); }, { passive: false });
+      cv.addEventListener('click', e => this.onCanvasClick(e));
+      this.stars = Array.from({ length: 260 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.3 + 0.2, p: Math.random() * 6 }));
+    }
+    el.hidden = false;
+    el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+    this.open = true;
+    this.t0 = performance.now();
+    this.render();
+    cancelAnimationFrame(this._raf);
+    const loop = () => { if (!this.open) return; this.draw(); this._raf = requestAnimationFrame(loop); };
+    loop();
+    if (typeof Sound !== 'undefined') Sound.play('event');
+  },
+  hide() {
+    this.open = false;
+    cancelAnimationFrame(this._raf);
+    const el = $('#space'); if (el) el.hidden = true;
+  },
+  // ------------------------------------------------ рисование
+  geom() {
+    const cv = $('#spCv'), W = cv.clientWidth, H = cv.clientHeight;
+    const side = W > 900 ? 380 : 0;
+    const base = Math.min(W - side, H) / 2 / 430;
+    return { W, H, cx: (W - side) / 2 + this.panX, cy: H / 2 + this.panY + 10, k: base * this.zoom };
+  },
+  bodyPos(id, time, g) {
+    const B = BODIES[id] || PLANETS[id];
+    const ang = (B.orbit * 7.3 % 6.28) + (S.turn * 0.12 + time * 0.012) * B.speed;
+    if (B.around) {
+      const c = this.bodyPos(B.around, time, g);
+      const r = B.orbit * Math.pow(g.k, 0.6) * 1.1;
+      return { x: c.x + Math.cos(ang) * r, y: c.y + Math.sin(ang) * r * 0.9, r: B.size * Math.max(0.8, Math.pow(g.k, 0.5)), c };
+    }
+    return { x: g.cx + Math.cos(ang) * B.orbit * g.k, y: g.cy + Math.sin(ang) * B.orbit * g.k * 0.82, r: B.size * Math.max(0.7, Math.pow(g.k, 0.5)) };
+  },
+  draw() {
+    const cv = $('#spCv');
+    if (!cv) return;
+    const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const x = cv.getContext('2d');
+    x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const time = (performance.now() - this.t0) / 1000, g = this.geom();
+    // фон и звёзды
+    const bg = x.createRadialGradient(g.cx, g.cy, 0, g.cx, g.cy, Math.max(W, H));
+    bg.addColorStop(0, '#0c1424'); bg.addColorStop(1, '#03050b');
+    x.fillStyle = bg; x.fillRect(0, 0, W, H);
+    this.stars.forEach(s => { x.globalAlpha = 0.35 + 0.35 * Math.sin(time * 1.3 + s.p); x.fillStyle = '#fff'; x.beginPath(); x.arc(s.x * W, s.y * H, s.r, 0, 6.29); x.fill(); });
+    x.globalAlpha = 1;
+    // орбиты
+    x.strokeStyle = 'rgba(140,170,220,.16)'; x.lineWidth = 1;
+    const all = Object.keys(PLANETS).concat(Object.keys(BODIES));
+    all.forEach(id => { const B = BODIES[id] || PLANETS[id]; if (B.around) return; x.beginPath(); x.ellipse(g.cx, g.cy, B.orbit * g.k, B.orbit * g.k * 0.82, 0, 0, 6.29); x.stroke(); });
+    // пояс астероидов
+    x.fillStyle = 'rgba(170,160,150,.45)';
+    for (let i = 0; i < 220; i++) { const a = i * 2.39996 + time * 0.004, r = (245 + (i * 37 % 30)) * g.k; x.fillRect(g.cx + Math.cos(a) * r, g.cy + Math.sin(a) * r * 0.82, 1.4, 1.4); }
+    // Солнце
+    const sr = 26 * Math.max(0.7, Math.pow(g.k, 0.5));
+    const sun = x.createRadialGradient(g.cx, g.cy, 0, g.cx, g.cy, sr * 3.2);
+    sun.addColorStop(0, '#fff6d0'); sun.addColorStop(0.3, '#ffcb4a'); sun.addColorStop(0.55, 'rgba(255,150,40,.35)'); sun.addColorStop(1, 'rgba(255,120,20,0)');
+    x.fillStyle = sun; x.beginPath(); x.arc(g.cx, g.cy, sr * 3.2, 0, 6.29); x.fill();
+    // тела
+    this.pos = {};
+    const me = S.player, mySp = S.space.n[me];
+    all.forEach(id => {
+      const B = BODIES[id] || PLANETS[id], p = this.bodyPos(id, time, g);
+      this.pos[id] = p;
+      if (B.around) { x.strokeStyle = 'rgba(140,170,220,.12)'; x.beginPath(); x.ellipse(p.c.x, p.c.y, B.orbit * Math.pow(g.k, 0.6) * 1.1, B.orbit * Math.pow(g.k, 0.6) * 0.99, 0, 0, 6.29); x.stroke(); }
+      const gr = x.createRadialGradient(p.x - p.r * 0.35, p.y - p.r * 0.35, p.r * 0.1, p.x, p.y, p.r);
+      gr.addColorStop(0, '#fff'); gr.addColorStop(0.25, B.color); gr.addColorStop(1, '#111');
+      if (B.ring) { x.strokeStyle = 'rgba(230,210,160,.55)'; x.lineWidth = 2; x.beginPath(); x.ellipse(p.x, p.y, p.r * 2, p.r * 0.6, -0.35, 0, 6.29); x.stroke(); x.lineWidth = 1; }
+      x.fillStyle = gr; x.beginPath(); x.arc(p.x, p.y, p.r, 0, 6.29); x.fill();
+      if (id === 'earth') { x.strokeStyle = 'rgba(120,190,255,.5)'; x.lineWidth = 2; x.beginPath(); x.arc(p.x, p.y, p.r + 2, 0, 6.29); x.stroke(); x.lineWidth = 1; }
+      // базы стран
+      if (BODIES[id]) {
+        const owners = Object.keys(S.space.n).filter(n => S.space.n[n].bases[id] && S.nations[n] && S.nations[n].alive);
+        owners.forEach((o, i) => { const a = i / Math.max(1, owners.length) * 6.28 - 1.2; x.fillStyle = o === me ? '#e3b54b' : nat(o).color; x.beginPath(); x.arc(p.x + Math.cos(a) * (p.r + 7), p.y + Math.sin(a) * (p.r + 7), o === me ? 4 : 3, 0, 6.29); x.fill(); });
+        if (mySp && mySp.bases[id]) { x.strokeStyle = '#e3b54b'; x.lineWidth = 1.5; x.beginPath(); x.arc(p.x, p.y, p.r + 12 + Math.sin(time * 2) * 1.5, 0, 6.29); x.stroke(); x.lineWidth = 1; }
+      }
+      if (this.sel === id || this.hover === id) { x.strokeStyle = this.sel === id ? '#e3b54b' : 'rgba(255,255,255,.6)'; x.setLineDash([3, 3]); x.beginPath(); x.arc(p.x, p.y, p.r + 17, 0, 6.29); x.stroke(); x.setLineDash([]); }
+      x.font = '12px system-ui, sans-serif'; x.textAlign = 'center';
+      x.fillStyle = BODIES[id] || id === 'earth' ? '#e6ebf5' : 'rgba(200,210,230,.55)';
+      x.fillText(B.name, p.x, B.around ? p.y - p.r - 7 : p.y + p.r + 16);
+    });
+    // спутники и станция у Земли
+    const E = this.pos.earth;
+    if (mySp && E) {
+      const nsat = ['sat', 'spysat', 'gps'].filter(t => mySp.tech[t]).length * 2;
+      for (let i = 0; i < nsat; i++) { const a = time * (0.9 + i * 0.13) + i * 1.7; x.fillStyle = '#cfe6ff'; x.fillRect(E.x + Math.cos(a) * (E.r + 7 + i % 3 * 2), E.y + Math.sin(a) * (E.r + 7 + i % 3 * 2), 2, 2); }
+      if (mySp.tech.station) { const a = -time * 0.6; x.fillStyle = '#ffd779'; x.fillRect(E.x + Math.cos(a) * (E.r + 13) - 3, E.y + Math.sin(a) * (E.r + 13) - 1.5, 6, 3); }
+    }
+    // экспедиции в пути (все страны)
+    Object.keys(S.space.n).forEach(o => (S.space.n[o].missions || []).forEach(m => {
+      const a = this.pos.earth, b = this.pos[m.body];
+      if (!a || !b) return;
+      const f = clamp((m.total - m.left + 0.5 + Math.sin(time * 1.5) * 0.15) / m.total, 0.05, 0.95);
+      const px = a.x + (b.x - a.x) * f, py = a.y + (b.y - a.y) * f;
+      x.strokeStyle = o === me ? 'rgba(227,181,75,.45)' : 'rgba(255,255,255,.18)'; x.setLineDash([4, 6]); x.beginPath(); x.moveTo(a.x, a.y); x.lineTo(b.x, b.y); x.stroke(); x.setLineDash([]);
+      const ang = Math.atan2(b.y - a.y, b.x - a.x);
+      x.save(); x.translate(px, py); x.rotate(ang); x.fillStyle = o === me ? '#ffd779' : nat(o).color;
+      x.beginPath(); x.moveTo(7, 0); x.lineTo(-5, -4); x.lineTo(-3, 0); x.lineTo(-5, 4); x.closePath(); x.fill();
+      x.fillStyle = 'rgba(255,160,60,.8)'; x.beginPath(); x.arc(-6, 0, 2 + Math.random(), 0, 6.29); x.fill(); x.restore();
+    }));
+  },
+  hit(e) {
+    const r = $('#spCv').getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+    let best = null, bd = 1e9;
+    for (const id in this.pos) { const p = this.pos[id], d = Math.hypot(p.x - mx, p.y - my); if (d < p.r + 12 && d < bd && (BODIES[id] || id === 'earth')) { bd = d; best = id; } }
+    return best;
+  },
+  onMove(e) {
+    if (this.drag) { const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) this.drag.moved = true; this.panX = this.drag.px + dx; this.panY = this.drag.py + dy; }
+    this.hover = this.hit(e);
+    $('#spCv').style.cursor = this.drag && this.drag.moved ? 'grabbing' : this.hover ? 'pointer' : 'grab';
+  },
+  onCanvasClick(e) {
+    if (this.drag && this.drag.moved) return;
+    const id = this.hit(e);
+    if (!id) return;
+    this.sel = id;
+    if (typeof Sound !== 'undefined') Sound.play('click');
+    this.render();
+  },
+  onClick(e) {
+    const b = e.target.closest('[data-sp]');
+    if (!b) return;
+    const a = b.dataset.sp, id = b.dataset.id;
+    const re = () => this.render();
+    if (a === 'earth') return this.hide();
+    if (a === 'end') return UI.endTurn();
+    if (a === 'tree') return SpaceView.tree();
+    if (a === 'sel') { this.sel = id; return this.render(); }
+    if (a === 'launch') return UI.cmd('spaceLaunch', { body: id }, re);
+    if (a === 'build') return UI.cmd('spaceBuild', { body: b.dataset.body, id }, re);
+  },
+  // ------------------------------------------------ панель
+  render() {
+    if (!this.open || !S || !S.player) return;
+    const me = S.player, n = nat(me), s = SP(me);
+    const pts = spacePts(me), y = spaceYield(me);
+    $('#spDate').textContent = dateStr();
+    const cur = s.cur && STECH[s.cur];
+    let h = `<div class="sec"><h4>🚀 Космическая программа — ${esc(n.name)}</h4>
+      <div class="kv"><span>Очки космоса</span><span><b>${pts.toFixed(1)}</b>/ход</span><span>Изучено технологий</span><span>${Object.keys(s.tech).length} из ${SPACE_TECH.length}</span>
+      <span>Доход баз</span><span class="good">+${fmtMoney(y.gold)}/ход</span>${y.sci ? `<span>Наука с баз</span><span>+${y.sci}/ход</span>` : ''}</div>
+      ${cur ? `<div style="margin-top:8px">Исследуется: <b>${cur.icon} ${esc(cur.name)}</b><div class="bar"><i style="width:${Math.min(100, s.pts / stechCost(cur.id) * 100)}%"></i></div><span class="muted" style="font-size:12px">${Math.floor(s.pts)} / ${stechCost(cur.id)}${pts ? ' · ~' + Math.max(1, Math.ceil((stechCost(cur.id) - s.pts) / pts)) + ' ход.' : ''}</span></div>`
+        : `<div class="warn" style="margin-top:8px">Космическое исследование не выбрано${s.pts > 1 ? ` (накоплено ${Math.floor(s.pts)} очков)` : ''}</div>`}
+      <button class="btn gold" data-sp="tree" style="width:100%;margin-top:8px">🔬 Космическая наука</button>
+      ${!pts ? `<p class="muted" style="font-size:12.5px">Чтобы начать: изучите «Ракеты и космос» до ур. 3 (сейчас ${tl(me, 'rocket')}) в обычной науке и постройте <b>Космодром</b> (нужна «Ракеты и космос» ур. 5 и НИИ). Очки космоса дают космодромы, НИИ и университеты.</p>` : ''}</div>`;
+    h += this.bodyBlock(this.sel);
+    // гонка
+    const F = S.space.first, keys = Object.keys(FIRSTS);
+    h += `<div class="sec"><h4>🏁 Космическая гонка</h4><table class="t">${keys.map(k => `<tr><td>${esc(FIRSTS[k])}</td><td>${F[k] && S.nations[F[k]] ? `${sw(F[k])} ${F[k] === me ? '<b class="goldc">' + esc(nat(F[k]).name) + '</b>' : esc(nat(F[k]).name)}` : '<span class="muted">ещё никто</span>'}</td></tr>`).join('')}</table></div>`;
+    $('#spPanel').innerHTML = h;
+  },
+  bodyBlock(id) {
+    const me = S.player, s = SP(me);
+    if (id === 'earth') {
+      const t = ['sat', 'spysat', 'gps', 'station', 'sdi'].filter(x => s.tech[x]).map(x => `${STECH[x].icon} ${STECH[x].name}`);
+      return `<div class="sec"><h4>🌍 Земля — орбита</h4>${t.length ? t.map(x => `<div>${x}</div>`).join('') : '<p class="muted">На орбите пока нет ваших аппаратов.</p>'}<p class="muted" style="font-size:12.5px">Спутники дают бонусы к науке, разведке и снабжению; станция — к науке.</p></div>`;
+    }
+    const B = BODIES[id];
+    if (!B) return '';
+    const base = s.bases[id], mis = s.missions.find(m => m.body === id);
+    const others = Object.keys(S.space.n).filter(o => o !== me && S.space.n[o].bases[id] && S.nations[o] && S.nations[o].alive);
+    let h = `<div class="sec sp-body"><h4>${B.icon} ${esc(B.name)}</h4><p class="muted" style="font-size:12.5px;margin:0 0 6px">${esc(B.desc)} Ресурсы: ${esc(B.res)}.</p>`;
+    if (!base && !mis) {
+      const err = canLaunch(me, id);
+      h += `<div class="kv"><span>Экспедиция</span><span>💰${fmt(missionCost(me, id))} · ${missionTurns(me, id)} ход.</span><span>Шанс успеха</span><span>${Math.round(missionChance(me) * 100)}%</span></div>
+        <button class="btn ${err ? 'ghost' : 'gold'}" data-sp="launch" data-id="${id}" ${err && err !== 'Недостаточно средств' ? 'disabled' : ''} style="width:100%;margin-top:6px">🚀 Отправить экспедицию</button>
+        ${err ? `<div class="bad" style="font-size:12.5px;margin-top:4px">${esc(err)}</div>` : ''}`;
+    } else if (mis) {
+      h += `<div>🚀 Экспедиция в пути: осталось <b>${mis.left}</b> ход. из ${mis.total}</div><div class="bar"><i style="width:${(1 - mis.left / mis.total) * 100}%"></i></div>`;
+    } else {
+      const y = baseYield(me, id);
+      const canB = hasST(me, B.base);
+      h += `<div class="row sp"><b class="goldc">🏳 Ваша база</b><span class="muted">места: ${baseUsed(base)}/${baseSlots(base)}</span></div>
+        <div class="kv" style="font-size:12.5px"><span>Доход</span><span class="good">+${fmtMoney(y.gold)}/ход</span>${y.steel ? `<span>Сталь</span><span>+${y.steel.toFixed(1)}</span>` : ''}${y.oil ? `<span>Нефть и топливо</span><span>+${y.oil.toFixed(1)}</span>` : ''}${y.sci ? `<span>Наука</span><span>+${y.sci}</span>` : ''}${y.sp ? `<span>Очки космоса</span><span>+${y.sp}</span>` : ''}${y.stab ? `<span>Стабильность</span><span>+${y.stab}</span>` : ''}</div>
+        ${base.q ? `<div style="margin:6px 0">🏗 Строится: <b>${SBLD[base.q.id].icon} ${esc(SBLD[base.q.id].name)}</b> — ${base.q.left} ход.</div>` : ''}
+        ${!canB ? `<div class="warn" style="font-size:12.5px">Строить здесь можно после технологии «${esc(STECH[B.base].name)}».</div>` : ''}
+        <div class="sp-blds">${SPACE_BLD.map(X => {
+          const lvl = base.b[X.id] || 0, err = canSpaceBuild(me, id, X.id);
+          if (X.bodies && !X.bodies.includes(id)) return '';
+          return `<div class="sp-bld ${lvl ? 'has' : ''}"><div class="row sp"><b>${X.icon} ${esc(X.name)}</b><span class="chip">${lvl}/${X.max}</span></div><small>${esc(X.desc)}</small>
+            ${lvl < X.max ? `<button class="btn sm ${err ? 'ghost' : ''}" data-sp="build" data-body="${id}" data-id="${X.id}" ${err && err !== 'Недостаточно средств' ? 'disabled' : ''} title="${esc(err || '')}">${lvl ? 'Улучшить' : 'Построить'} · 💰${fmt(sbldCost(me, X.id, lvl))} · ${X.turns + (id === 'moon' ? 0 : 1)} х.</button>` : ''}
+            ${err && lvl < X.max && err !== 'Недостаточно средств' ? `<small class="muted">${esc(err)}</small>` : ''}</div>`;
+        }).join('')}</div>`;
+    }
+    if (others.length) h += `<div style="margin-top:8px;font-size:12.5px"><span class="muted">Базы других стран:</span> ${others.map(o => `${sw(o)} ${esc(nat(o).name)}`).join(', ')}</div>`;
+    return h + '</div>';
+  },
+  // ------------------------------------------------ дерево космической науки
+  tree() {
+    const me = S.player, s = SP(me), pts = spacePts(me);
+    const tiers = [];
+    SPACE_TECH.forEach(t => { (tiers[t.tier] = tiers[t.tier] || []).push(t); });
+    const node = t => {
+      const st = stechState(me, t.id);
+      const req = (t.req || []).map(r => STECH[r].name).concat(t.need ? [`«Ракеты и космос» ур. ${t.need}`] : []).join(', ');
+      return `<div class="st-node ${st}" ${st === 'open' ? `data-act="spRes" data-id="${t.id}"` : ''} title="${esc(t.desc)}">
+        <div class="st-h"><span class="st-i">${t.icon}</span><b>${esc(t.name)}</b></div><small>${esc(t.desc)}</small>
+        <div class="st-f">${st === 'done' ? '<span class="good">✔ Изучено</span>' : st === 'active' ? `<span class="goldc">⏳ ${Math.floor(s.pts)}/${stechCost(t.id)}</span>` : st === 'open' ? `<span>${stechCost(t.id)} оч.${pts ? ' · ~' + Math.max(1, Math.ceil(stechCost(t.id) / pts)) + ' х.' : ''}</span>` : `<span class="muted">🔒 ${esc(req)}</span>`}</div></div>`;
+    };
+    UI.modal(`<h2>🔬 Космическая наука</h2><p class="muted">Отдельная наука на очках космоса (${pts.toFixed(1)}/ход). Нажмите на доступную технологию, чтобы изучать её. Первые в мире получают престиж: стабильность и уважение других стран.</p>
+      <div class="st-tree">${tiers.map((col, i) => `<div class="st-col"><div class="st-tier">Этап ${i + 1}</div>${(col || []).map(node).join('')}</div>`).join('')}</div>`);
+    UI.win = 'spaceTree';
+  },
+};
+
+// ================================================================= встраивание
+Object.assign(UI, {
+  genBlock() {
+    const me = S.player, n = nat(me), g = n.gen || 1;
+    const can = canAdvanceGen(me), left = genLeft(me);
+    const total = TECHS.length * TECH_MAX;
+    return `<div class="sec gen-box"><div class="row sp"><div><b>🧬 ${genName(g)} науки</b><div class="muted" style="font-size:12px">${TECHS.length} веток по ${TECH_MAX} уровней. Изучите всё — и откроется следующее поколение: новые технологии, доход и производство +5%, войска +3%, наука +10%.</div></div>
+      ${can ? '<button class="btn gold" data-act="techGen">🚀 Перейти в следующее поколение</button>' : `<span class="chip">осталось уровней: ${left}</span>`}</div>
+      ${!can ? `<div class="bar" style="margin-top:6px"><i style="width:${(1 - left / total) * 100}%"></i></div>` : ''}</div>`;
+  },
+});
+
+(function patchUI6() {
+  const tech0 = UI.winTech;
+  UI.winTech = function () {
+    const h = tech0.call(this);
+    const i = h.indexOf('<div class="sec tech-top">');
+    return i > 0 ? h.slice(0, i) + this.genBlock() + h.slice(i) : this.genBlock() + h;
+  };
+  const prog0 = UI.winPrograms;
+  UI.winPrograms = function () {
+    const n = nat(S.player), g = n.progGen || 1;
+    let h = prog0.call(this);
+    const done = courseDone(S.player);
+    const box = `<div class="sec gen-box"><div class="row sp"><div><b>🎯 Национальный курс: ${ROMAN[g] || g} поколение</b><div class="muted" style="font-size:12px">${g > 1 ? `Бонусы программ сильнее на ${(g - 1) * 50}%. ` : ''}Когда все доступные программы выполнены, можно начать новый курс — все программы откроются снова с более сильными бонусами.</div></div>
+      ${done ? '<button class="btn gold" data-act="courseGen">🎯 Начать новый курс</button>' : ''}</div></div>`;
+    const i = h.indexOf('<div class="sec prog-cur');
+    h = i > 0 ? h.slice(0, i) + box + h.slice(i) : h + box;
+    if (done) h = h.replace('Сейчас программа не выбрана — страна теряет время. Выберите одну из доступных.', 'Все программы этого курса выполнены. Начните новый курс — кнопка выше.');
+    return h;
+  };
+  const upd0 = UI.updateProgBtn;
+  UI.updateProgBtn = function () {
+    upd0.apply(this, arguments);
+    const b = $('#btnProg');
+    if (b && S && S.player && S.nations[S.player] && courseDone(S.player)) { b.classList.add('attn'); b.title = 'Национальный курс выполнен — начните новый (N)'; }
+  };
+  const click0 = UI.click;
+  UI.click = function (e) {
+    const b = e.target.closest('[data-act]');
+    if (b) {
+      const act = b.dataset.act, id = b.dataset.id;
+      if (act === 'techGen') { e.preventDefault(); return this.cmd('techGen', {}, () => this.openWin('tech')); }
+      if (act === 'courseGen') { e.preventDefault(); return this.cmd('courseGen', {}, () => this.openWin('programs')); }
+      if (act === 'spRes') { e.preventDefault(); return this.cmd('spaceRes', { id }, () => { SpaceView.render(); if (UI.win === 'spaceTree') SpaceView.tree(); }); }
+      if (act === 'spaceOpen') { e.preventDefault(); this.closeModal(); return SpaceView.show(); }
+    }
+    return click0.call(this, e);
+  };
+  // сообщения космической гонки
+  const pend0 = UI.showPending;
+  UI.showPending = function () {
+    if (!S || !S.player || !$('#modal').hidden) return;
+    const o = S.pending.find(x => x.to === S.player && !this.answering[x.id]);
+    if (o && o.type === 'spaceFirst') {
+      this.pendingShown = o.id;
+      this.modal(`<h2 class="goldc">🌟 Первые в мире!</h2><p>Наша страна — первая в истории: <b>${esc(o.text)}</b>.</p><p class="muted">Весь мир восхищён: стабильность +8, отношения со странами улучшились.</p>
+        <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn ghost" data-act="offer" data-id="${o.id}" data-yes="0">Отлично</button><button class="btn gold" data-act="spaceOpen" data-id="">🚀 К космосу</button></div>`, true);
+      if (typeof Sound !== 'undefined') Sound.play('victory');
+      return;
+    }
+    if (o && o.type === 'spaceFail') {
+      this.pendingShown = o.id;
+      this.modal(`<h2 class="bad">💥 Катастрофа</h2><p>Экспедиция к цели «${esc((BODIES[o.body] || {}).name || '')}» погибла. Страна в трауре (стабильность −4).</p><p class="muted">Шанс успеха растёт с каждой изученной космической технологией. Можно отправить новую экспедицию.</p><div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn" data-act="offer" data-id="${o.id}" data-yes="0">Понятно</button></div>`, true);
+      if (typeof Sound !== 'undefined') Sound.play('bad');
+      return;
+    }
+    return pend0.apply(this, arguments);
+  };
+  // обновление панели космоса вместе с игрой
+  const ref0 = UI.refresh;
+  UI.refresh = function () { const r = ref0.apply(this, arguments); if (SpaceView.open) SpaceView.render(); return r; };
+  // клавиша K, Esc — назад на Землю
+  document.addEventListener('keydown', e => {
+    if (/INPUT|TEXTAREA|SELECT/.test((document.activeElement && document.activeElement.tagName) || '')) return;
+    const k = (e.key || '').toLowerCase();
+    if (SpaceView.open && e.key === 'Escape' && $('#modal').hidden) { SpaceView.hide(); e.stopImmediatePropagation(); return; }
+    if ((k === 'k' || k === 'л') && S && S.player && !$('#game').hidden && $('#modal').hidden) { SpaceView.open ? SpaceView.hide() : SpaceView.show(); }
+  }, true);
+  window.addEventListener('DOMContentLoaded', () => {
+    const b = $('#btnSpace'); if (b) b.onclick = () => SpaceView.show();
+    const menu0 = Main.showMenu;
+    Main.showMenu = function () { SpaceView.hide(); return menu0.apply(this, arguments); };
+  });
+})();
+
+// ================================================================= достижения v7
+if (typeof ACH !== 'undefined') {
+  ACH.splice(ACH.length - 1, 0,
+    { id: 'gen2', i: '🧬', n: 'Новое поколение', d: 'Перейдите во второе поколение науки.', c: c => (c.n.gen || 1) >= 2 },
+    { id: 'course2', i: '🎯', n: 'Курс завершён', d: 'Начните национальный курс второго поколения.', c: c => (c.n.progGen || 1) >= 2 },
+    { id: 'orbit', i: '🛰', n: 'Поехали!', d: 'Отправьте человека в космос.', c: c => hasST(c.me, 'manned') },
+    { id: 'moon', i: '🌙', n: 'Маленький шаг', d: 'Основайте базу на Луне.', c: c => !!sb(c.me, 'moon') },
+    { id: 'mars', i: '🔴', n: 'Красная планета', d: 'Основайте базу на Марсе.', c: c => !!sb(c.me, 'mars') },
+    { id: 'colonies', i: '🪐', n: 'Хозяин системы', d: 'Имейте базы на четырёх небесных телах.', c: c => Object.keys(BODIES).filter(b => sb(c.me, b)).length >= 4 },
+    { id: 'starship', i: '🌌', n: 'К звёздам', d: 'Постройте межзвёздный корабль.', c: c => hasST(c.me, 'starship') },
+    { id: 'spacefirst', i: '🏁', n: 'Первые в космосе', d: 'Победите в любом этапе космической гонки.', c: c => S.space && Object.values(S.space.first || {}).includes(c.me) },
+    { id: 'friend', i: '👥', n: 'Не один', d: 'Добавьте друга.', c: () => typeof Friends !== 'undefined' && Friends.me && Friends.me.list.some(f => f.ok) },
+  );
+}
 
 </script>
 <script>
